@@ -118,9 +118,6 @@ class Ledger:
                     out.append(json.loads(line))
         return out
 
-    def __len__(self) -> int:
-        return len(self.records())
-
     def head(self) -> tuple[int, str]:
         last = self._last_record()
         if last is None:
