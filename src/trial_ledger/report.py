@@ -31,6 +31,7 @@ class Report:
     n_obs: int | None
     skew: float | None
     kurtosis: float | None
+    moments_known: bool | None  # False: no return series logged, Gaussian moments assumed
     var_trials_sharpe: float | None  # per period, across distinct trials
     psr0: float | None
     sr0_ledger: float | None  # expected max Sharpe under the null given ledger N (per period)
@@ -167,6 +168,7 @@ def build_report(
         n_obs=n_obs,
         skew=skew,
         kurtosis=kurt,
+        moments_known=best.get("skew") is not None and best.get("kurtosis") is not None,
         var_trials_sharpe=var_sr,
         psr0=psr0,
         sr0_ledger=expected_max_sharpe(n, var_sr),
@@ -199,8 +201,12 @@ def format_report(rep: Report, threshold: float = 0.95) -> str:
     lines += [
         f"best trial                  #{rep.best_seq} {rep.best_strategy}",
         f"best Sharpe (annualised)    {_f(rep.best_sharpe_ann, '.2f')}"
-        f"  (per period {_f(rep.best_sharpe, '.4f')}, T={rep.n_obs},"
-        f" skew={_f(rep.skew, '.2f')}, kurt={_f(rep.kurtosis, '.2f')})",
+        f"  (per period {_f(rep.best_sharpe, '.4f')}, T={rep.n_obs}, "
+        + (
+            f"skew={_f(rep.skew, '.2f')}, kurt={_f(rep.kurtosis, '.2f')})"
+            if rep.moments_known
+            else "skew/kurtosis unknown: Gaussian assumed)"
+        ),
         f"PSR(SR>0), ignores N        {_f(rep.psr0)}  [{verdict_psr} at {threshold}]",
         f"E[max SR | N, null]         {_f(rep.sr0_ledger, '.4f')} per period",
         f"DSR with ledger N={rep.n_trials + (rep.n_unscored or 0):<6}   {_f(rep.dsr_ledger)}"
