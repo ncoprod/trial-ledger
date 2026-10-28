@@ -172,96 +172,184 @@ def append_trials(
 
 CAPTURE_ENV = "TRIAL_LEDGER_CAPTURE_COMMANDS"
 PREVIEW_CHARS = 300
-_R = "<redacted>"
-# Ordered: specific shapes first, generic high-entropy runs last.
-_REDACTIONS: list[tuple[re.Pattern[str], str]] = [
-    # HTTP auth headers: "Authorization: Bearer x", "-H 'X-Api-Key: x'"
-    (
-        re.compile(
-            r"(?i)\b((?:proxy-)?authorization|x-api-key|api-key|x-auth-token)"
-            r"(\s*[:=]\s*)(?:(bearer|basic|token)\s+)?[^\s'\"]+"
-        ),
-        rf"\1\2\3 {_R}",
-    ),
-    (re.compile(r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}"), rf"\1 {_R}"),
-    # VAR=value assignments / env prefixes (FOO=bar python x.py, export FOO=bar)
-    (re.compile(r"(?<![\w-])([A-Za-z_][A-Za-z0-9_]*)=(\"[^\"]*\"|'[^']*'|[^\s;&|]+)"), rf"\1={_R}"),
-    # --api-key X, --token=X, --password X ...
-    (
-        re.compile(
-            r"(?i)(?<![\w-])(--?[\w-]{0,40}"
-            r"(?:api[-_]?key|token|secret|passw(?:or)?d|auth|credential)[\w-]{0,40})(=|\s+)(\"[^\"]*\"|'[^']*'|\S+)"
-        ),
-        rf"\1\2{_R}",
-    ),
-    # secrets in URLs: user:pass@host and ?token=...
-    (re.compile(r"(?i)(://[^/\s:@]+:)[^@\s/]+@"), rf"\1{_R}@"),
-    (
-        re.compile(r"(?i)([?&](?:token|key|api_key|apikey|access_token|secret|sig)=)[^&\s'\"]+"),
-        rf"\1{_R}",
-    ),
-    # vendor token prefixes
-    (re.compile(r"\b(?:sk|pk|rk)-[A-Za-z0-9_-]{8,}"), _R),
-    (re.compile(r"\b(?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{8,}"), _R),
-    (re.compile(r"\bgh[pousr]_[A-Za-z0-9]{16,}"), _R),
-    (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{16,}"), _R),
-    (re.compile(r"\bnvapi-[A-Za-z0-9_-]{8,}"), _R),
-    (re.compile(r"\bxox[abposr]-[A-Za-z0-9-]{8,}"), _R),
-    (re.compile(r"\bhf_[A-Za-z0-9]{16,}"), _R),
-    (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), _R),
-    (re.compile(r"\bAIza[0-9A-Za-z_-]{30,}"), _R),
-    (re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*"), _R),  # JWT
-    # generic: long hex runs (long base64/url-safe runs are handled by _GENERIC below)
-    (re.compile(r"\b[0-9a-fA-F]{32,}\b"), _R),
-]
-# A single linear scan; the "mixes letters and digits" test runs in the callback instead of
-# per-position lookaheads, which were quadratic on long inputs.
-_GENERIC = re.compile(r"[A-Za-z0-9+/_=-]{32,}")
-_HAS_DIGIT = re.compile(r"\d")
-_HAS_ALPHA = re.compile(r"[A-Za-z]")
-# Hard cap on the text scanned: the preview is PREVIEW_CHARS long, the margin leaves room for
-# redactions that shorten the text. Keeps the hook O(1) in the size of the command.
-REDACT_MAX_CHARS = PREVIEW_CHARS * 4
+# Only the first SCAN_CHARS characters of a command are tokenised (keeps the hook fast on
+# huge inputs); the hash always covers the full command.
+SCAN_CHARS = 8192
+REDACTED = "<redacted>"
+SECRET_WORDS = ("api", "key", "token", "secret", "pass", "auth", "credential", "bearer")
+_ENV_ASSIGN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
+_SEPARATORS = {"&&", "||", ";", "|", "&", "(", ")", ";;"}
+_RUNNERS = {"uv", "poetry", "pipenv", "conda", "pixi", "hatch", "rye", "npx", "pnpm", "yarn"}
+_INTERPRETERS = {
+    "python", "python3", "pypy", "pypy3", "node", "deno", "bun", "ts-node", "Rscript", "R",
+    "julia", "ruby", "perl", "bash", "sh", "zsh", "pytest",
+}  # fmt: skip
 
 
-def _generic_token(m: re.Match[str]) -> str:
-    tok = m.group(0)
-    if not (_HAS_DIGIT.search(tok) and _HAS_ALPHA.search(tok)):
-        return tok
-    if "/" in tok and "+" not in tok and "=" not in tok:
-        # Looks like a file path (e.g. results/run_2026_10_28.py): keep it unless one of its
-        # segments is itself a long token.
-        return "/".join(_GENERIC.sub(_generic_token, seg) for seg in tok.split("/"))
-    return _R
+def shell_tokens(command: str) -> tuple[list[str], bool]:
+    """Tokenise (a prefix of) a shell command; returns (tokens, truncated).
 
-
-def _redact_uncapped(text: str) -> str:
-    for pat, repl in _REDACTIONS:
-        text = pat.sub(repl, text)
-    return _GENERIC.sub(_generic_token, text)
-
-
-def redact_command(command: str) -> str:
-    """Best-effort removal of credentials from a shell command (for previews only).
-
-    Only the first ``REDACT_MAX_CHARS`` characters are scanned and returned.
+    Uses ``shlex`` with shell punctuation split out (``&&``, ``;``, ``|``...), falling back to
+    ``str.split`` on unbalanced quotes. If the command was cut at ``SCAN_CHARS`` the last,
+    possibly partial, token is dropped.
     """
-    return _redact_uncapped(command[:REDACT_MAX_CHARS])
+    text = command[:SCAN_CHARS]
+    truncated = len(command) > SCAN_CHARS
+    try:
+        lex = shlex.shlex(text, posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        tokens = list(lex)
+    except ValueError:
+        tokens = text.split()
+    if truncated and tokens:
+        tokens = tokens[:-1]
+    return tokens, truncated
+
+
+def _segments(tokens: list[str]) -> list[list[str]]:
+    segs: list[list[str]] = [[]]
+    for t in tokens:
+        if t in _SEPARATORS:
+            segs.append([])
+        else:
+            segs[-1].append(t)
+    return [s for s in segs if s]
+
+
+def _is_interpreter(name: str) -> bool:
+    return name in _INTERPRETERS or re.fullmatch(r"python\d*(\.\d+)?", name) is not None
+
+
+def _program_of(seg: list[str]) -> tuple[str | None, bool]:
+    """'uv run python experiments/run.py' -> ('uv run python experiments/run.py', True)."""
+    i = 0
+    while i < len(seg) and (
+        _ENV_ASSIGN.match(seg[i]) or Path(seg[i]).name in {"env", "time", "nohup", "exec"}
+    ):
+        i += 1
+    if i >= len(seg):
+        return None, False
+    parts = [Path(seg[i]).name]
+    runs_code = False
+    i += 1
+    exe = parts[0]
+    if exe in _RUNNERS and i < len(seg) and seg[i] in {"run", "exec", "x"}:
+        parts.append(seg[i])
+        i += 1
+        # runner options may take values (uv run --with pandas python ...): prefer the first
+        # interpreter or script after them, else the first non-option token
+        rest = range(i, len(seg))
+        j = next((k for k in rest if _is_interpreter(Path(seg[k]).name)), None)
+        if j is None:
+            j = next((k for k in rest if not seg[k].startswith("-")), None)
+        if j is not None:
+            exe = Path(seg[j]).name
+            parts.append(exe)
+            i = j + 1
+        runs_code = True
+    if _is_interpreter(exe):
+        runs_code = True
+        while i < len(seg):
+            t = seg[i]
+            if t in {"-m", "-c", "-e"}:
+                parts.append(t)
+                if t == "-m" and i + 1 < len(seg):
+                    parts.append(seg[i + 1])
+                break
+            if not t.startswith("-"):
+                parts.append(t)  # script path
+                break
+            i += 1
+    return " ".join(parts), runs_code
+
+
+def command_program(command: str) -> str | None:
+    """The executable, plus the script/module when it runs an interpreter.
+
+    For compound commands (``cd x && uv run python y.py``) the first segment that runs code is
+    used, else the first segment.
+    """
+    tokens, _ = shell_tokens(command)
+    first = None
+    for seg in _segments(tokens):
+        prog, runs_code = _program_of(seg)
+        if prog and runs_code:
+            return prog
+        first = first or prog
+    return first
+
+
+def _looks_secret(tok: str) -> bool:
+    low = tok.lower()
+    if any(w in low for w in SECRET_WORDS) and ("=" in tok or ":" in tok or " " in tok):
+        return True  # key=value pairs, URLs with ?token=, "Authorization: Bearer ..." headers
+    if len(tok) >= 20 and any(c.isdigit() for c in tok) and any(c.isalpha() for c in tok):
+        return True
+    return False
+
+
+def _secret_flag(tok: str) -> bool:
+    if not tok.startswith("-") or tok in {"-", "--"}:
+        return False
+    name = tok.lstrip("-").split("=", 1)[0].lower()
+    return any(w in name for w in SECRET_WORDS)
+
+
+def redacted_preview(command: str, max_chars: int = PREVIEW_CHARS) -> str:
+    """Token-level redacted preview of a command (opt-in, see :func:`command_fields`).
+
+    * the value of any ``-x``/``--x`` flag whose name contains api/key/token/secret/pass/auth/
+      credential is redacted, in ``--k=v`` and ``--k v`` forms, whatever the flag's length;
+    * ``VAR=value`` assignments (env prefixes, ``export``) are redacted;
+    * any token of 20+ characters mixing letters and digits, and any token carrying a
+      secret-like ``key=value``/header, is redacted;
+    * the result is truncated only after redaction, at a token boundary.
+    """
+    tokens, truncated = shell_tokens(command)
+    out: list[str] = []
+    redact_next = False
+    for tok in tokens:
+        if redact_next and tok not in _SEPARATORS:
+            out.append(REDACTED)
+            redact_next = False
+            continue
+        redact_next = False
+        if _secret_flag(tok):
+            if "=" in tok:
+                out.append(tok.split("=", 1)[0] + "=" + REDACTED)
+            else:
+                out.append(tok)
+                redact_next = True
+        elif m := _ENV_ASSIGN.match(tok):
+            out.append(m.group(0) + REDACTED)
+        elif _looks_secret(tok):
+            out.append(REDACTED)
+        else:
+            out.append(shlex.quote(tok) if tok not in _SEPARATORS else tok)
+    preview = ""
+    for i, tok in enumerate(out):
+        cand = tok if not preview else f"{preview} {tok}"
+        if len(cand) > max_chars:
+            return preview + " ..."
+        preview = cand
+        if i == len(out) - 1 and truncated:
+            preview += " ..."
+    return preview
 
 
 def command_fields(command: str) -> dict[str, Any]:
-    """What the ledger stores about a command.
+    """What the ledger stores about a shell command.
 
-    By default only a SHA-256 of the exact command and a short redacted preview; the raw
-    command (which may contain API keys or auth headers) is stored only when
-    ``TRIAL_LEDGER_CAPTURE_COMMANDS=1``.
+    By default: ``command_sha256`` (hash of the exact command) and ``program`` (executable,
+    plus script/module for interpreters). No free text from the command is stored unless
+    ``TRIAL_LEDGER_CAPTURE_COMMANDS=1``, which adds a token-level ``command_preview``.
     """
     fields: dict[str, Any] = {
         "command_sha256": sha256_hex(command),
-        "command_preview": redact_command(command)[:PREVIEW_CHARS],
+        "program": command_program(command),
     }
     if os.environ.get(CAPTURE_ENV, "").strip().lower() in {"1", "true", "yes"}:
-        fields["command"] = command[:2000]
+        fields["command_preview"] = redacted_preview(command)
     return fields
 
 
@@ -297,10 +385,7 @@ def _output_from_event(event: dict[str, Any]) -> str:
 def code_hash_for_command(command: str, cwd: str | None = None) -> str:
     """Hash of the command plus the content of any existing files it references."""
     parts = [command]
-    try:
-        tokens = shlex.split(command)
-    except ValueError:
-        tokens = command.split()
+    tokens, _ = shell_tokens(command)
     for tok in tokens:
         p = Path(cwd or ".") / tok
         if p.suffix in {".py", ".R", ".jl", ".js", ".ts", ".ipynb", ".toml", ".yaml", ".yml"}:

@@ -209,19 +209,7 @@ SECRET_CMD = (
 )
 
 
-def test_redact_command_strips_credentials():
-    red = hooks.redact_command(SECRET_CMD)
-    for value in FAKE.values():
-        assert value not in red, value
-    assert "backtest.py --fast 5" in red
-    assert "NVIDIA_API_KEY=<redacted>" in red
-    assert "Authorization: Bearer <redacted>" in red
-    # ordinary commands are left readable
-    plain = "uv run python experiments/sweep.py --family momentum --lookback 20"
-    assert hooks.redact_command(plain) == plain
-
-
-def test_ledger_stores_hash_and_preview_not_raw_command(tmp_path, monkeypatch):
+def test_default_record_has_hash_and_program_only(tmp_path, monkeypatch):
     monkeypatch.delenv(hooks.CAPTURE_ENV, raising=False)
     lg = Ledger(tmp_path / "tl")
     out = 'TRIAL_LEDGER {"sharpe": 0.05, "n_obs": 1000}'
@@ -233,9 +221,40 @@ def test_ledger_stores_hash_and_preview_not_raw_command(tmp_path, monkeypatch):
     recs = lg.records()
     assert len(recs) == 2
     for r in recs:
-        assert "command" not in r["extra"]
+        assert "command" not in r["extra"] and "command_preview" not in r["extra"]
         assert r["extra"]["command_sha256"] == hooks.sha256_hex(SECRET_CMD)
-        assert "backtest.py" in r["extra"]["command_preview"]
+        assert r["extra"]["program"] == "uv run python backtest.py"
+
+
+@pytest.mark.parametrize(
+    ("command", "program"),
+    [
+        ("python3 -u sweep.py --fast 5", "python3 sweep.py"),
+        (
+            "cd proj && uv run --with pandas python -m experiments.run all",
+            "uv run python -m experiments.run",
+        ),
+        ("FOO=1 node bt.js", "node bt.js"),
+        ("/usr/bin/env python /abs/path/backtest.py", "python /abs/path/backtest.py"),
+        ("ls -la; git status", "ls"),
+        ("python -c 'print(1)'", "python -c"),
+        ("echo 'unbalanced", "echo"),
+    ],
+)
+def test_command_program(command, program):
+    assert hooks.command_program(command) == program
+
+
+def test_preview_is_opt_in_and_redacted(tmp_path, monkeypatch):
+    monkeypatch.setenv(hooks.CAPTURE_ENV, "1")
+    lg = Ledger(tmp_path / "tl")
+    hooks.log_shell_event(_claude_event(SECRET_CMD), lg)
+    prev = lg.records()[0]["extra"]["command_preview"]
+    for value in FAKE.values():
+        assert value not in prev, value
+    assert "NVIDIA_API_KEY=<redacted>" in prev
+    assert "--api-key <redacted>" in prev and "--token=<redacted>" in prev
+    assert "backtest.py --fast 5" in prev
 
 
 def test_exec_does_not_store_raw_argv(tmp_path, monkeypatch):
@@ -246,11 +265,27 @@ def test_exec_does_not_store_raw_argv(tmp_path, monkeypatch):
     assert FAKE["nv"] not in Ledger(d).path.read_text()
 
 
-def test_full_command_capture_is_opt_in(tmp_path, monkeypatch):
-    monkeypatch.setenv(hooks.CAPTURE_ENV, "1")
-    lg = Ledger(tmp_path / "tl")
-    hooks.log_shell_event(_claude_event("python backtest.py --lookback 20"), lg)
-    assert lg.records()[0]["extra"]["command"] == "python backtest.py --lookback 20"
+def test_preview_redacts_long_flag_names():
+    flag = "--" + "my-very-long-service-name-" * 3 + "api-key"  # > 40 characters
+    assert len(flag) > 60
+    for cmd in (f"python x.py {flag} hunter2", f"python x.py {flag}=hunter2"):
+        prev = hooks.redacted_preview(cmd)
+        assert "hunter2" not in prev and "<redacted>" in prev
+
+
+def test_preview_secret_at_truncation_boundary():
+    secret = "Zx81Qw7e" * 4  # 32 chars, letters + digits
+    # place the secret so that it straddles the preview length
+    pad = "a " * ((hooks.PREVIEW_CHARS - 10) // 2)
+    prev = hooks.redacted_preview(f"python x.py {pad}{secret} tail")
+    assert len(prev) <= hooks.PREVIEW_CHARS + 4
+    assert not any(secret[:k] in prev for k in range(6, len(secret) + 1))
+    # ... and at the tokenizer's scan limit, where the token itself gets cut
+    filler = "b " * ((hooks.SCAN_CHARS - 12) // 2)
+    cmd = f"python x.py {filler}{secret}"
+    assert len(cmd) > hooks.SCAN_CHARS
+    prev = hooks.redacted_preview(cmd, max_chars=10**6)
+    assert not any(secret[:k] in prev for k in range(6, len(secret) + 1))
 
 
 PATHOLOGICAL = {
@@ -260,42 +295,20 @@ PATHOLOGICAL = {
     "flag_like": "--x" * 333_334,
     "slashed": "ab12/" * 200_000,
     "assignments": "A=" * 500_000,
-    "auth_words": "authorization " * 75_000,
+    "words": "authorization " * 75_000,
+    "quotes": "'a" * 500_000,
 }
 
 
 @pytest.mark.parametrize("name", sorted(PATHOLOGICAL))
-def test_redaction_of_1mb_input_is_fast(name):
+def test_1mb_command_is_handled_fast(name, monkeypatch):
     import time
 
+    monkeypatch.setenv(hooks.CAPTURE_ENV, "1")
     text = PATHOLOGICAL[name]
     assert len(text) >= 1_000_000
     t0 = time.perf_counter()
-    out = hooks.redact_command(text)
+    fields = hooks.command_fields(text)
+    hooks.code_hash_for_command(text)
     assert time.perf_counter() - t0 < 0.1
-    assert len(out) <= hooks.REDACT_MAX_CHARS
-
-
-@pytest.mark.parametrize("name", ["alnum_run", "dash_run", "flag_like", "slashed"])
-def test_redaction_patterns_scale_linearly(name):
-    """Even without the cap, no pattern may be quadratic: 4x the input, < 8x the time."""
-    import time
-
-    def best(text):
-        times = []
-        for _ in range(3):
-            t0 = time.perf_counter()
-            hooks._redact_uncapped(text)
-            times.append(time.perf_counter() - t0)
-        return min(times)
-
-    big = PATHOLOGICAL[name]
-    small = big[: len(big) // 4]
-    assert best(big) < 8 * best(small) + 0.01
-
-
-def test_redaction_keeps_paths_but_not_tokens_in_them():
-    path = "python /Users/me/AI/trial-ledger/experiments/results/run_2026_10_28.py"
-    assert hooks.redact_command(path) == path
-    tok = "Q2xhdWRlQ29kZTEyMzQ1Njc4OTBhYmNkZWZnaGlqa2xtbm9w"
-    assert tok not in hooks.redact_command(f"python x.py --in data/{tok}/r.csv")
+    assert len(fields["command_preview"]) <= hooks.PREVIEW_CHARS + 4
