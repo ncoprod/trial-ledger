@@ -18,10 +18,12 @@ Two levels of capture:
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import shlex
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +48,16 @@ def emit(sharpe: float, n_obs: int, strategy: dict[str, Any] | None = None, **ex
     return line
 
 
-def parse_trial_lines(text: str) -> list[dict[str, Any]]:
+@dataclass
+class TrialAttempt:
+    """One ``TRIAL_LEDGER`` line: its JSON payload, or the reason it could not be parsed."""
+
+    payload: dict[str, Any] | None
+    error: str | None = None
+
+
+def parse_trial_attempts(text: str) -> list[TrialAttempt]:
+    """Every line starting with ``TRIAL_LEDGER `` is an attempt, parseable or not."""
     out = []
     for raw in (text or "").splitlines():
         line = raw.strip()
@@ -55,10 +66,108 @@ def parse_trial_lines(text: str) -> list[dict[str, Any]]:
         try:
             obj = json.loads(line[len(TRIAL_PREFIX) :])
         except json.JSONDecodeError:
+            out.append(TrialAttempt(None, "JSONDecodeError"))
             continue
         if isinstance(obj, dict):
-            out.append(obj)
+            out.append(TrialAttempt(obj))
+        else:
+            out.append(TrialAttempt(None, "TypeError"))
     return out
+
+
+def parse_trial_lines(text: str) -> list[dict[str, Any]]:
+    """Well-formed JSON payloads only (use :func:`parse_trial_attempts` for auditing)."""
+    return [a.payload for a in parse_trial_attempts(text) if a.payload is not None]
+
+
+def coerce_trial(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate one trial payload. Raises ``ValueError``/``TypeError`` if it is malformed."""
+    t = dict(payload)
+    sharpe = t.pop("sharpe", None)
+    if sharpe is not None:
+        if isinstance(sharpe, bool):
+            raise TypeError("sharpe must be a number")
+        sharpe = float(sharpe)
+        if not math.isfinite(sharpe):
+            raise ValueError("sharpe must be finite")
+    n_obs = t.pop("n_obs", None)
+    if n_obs is not None:
+        if isinstance(n_obs, bool):
+            raise TypeError("n_obs must be an integer")
+        f = float(n_obs)
+        if not f.is_integer() or f < 1:
+            raise ValueError("n_obs must be a positive integer")
+        n_obs = int(f)
+    strategy = t.pop("strategy", None)
+    if strategy is None:
+        strategy = {}
+    if not isinstance(strategy, dict):
+        raise TypeError("strategy must be an object")
+    ppy = float(t.pop("periods_per_year", 252.0))
+    if not math.isfinite(ppy) or ppy <= 0:
+        raise ValueError("periods_per_year must be positive")
+    dataset_hash = t.pop("dataset_hash", None)
+    if dataset_hash is not None and not isinstance(dataset_hash, str):
+        raise TypeError("dataset_hash must be a string")
+    return {
+        "sharpe": sharpe,
+        "n_obs": n_obs,
+        "strategy": strategy,
+        "periods_per_year": ppy,
+        "dataset_hash": dataset_hash,
+        "extra": t,
+    }
+
+
+def append_trials(
+    ledger: Ledger,
+    attempts: list[TrialAttempt],
+    *,
+    source: str,
+    base_extra: dict[str, Any],
+    agent: str | None = None,
+    session_id: str | None = None,
+    code_hash: str | None = None,
+) -> list[dict[str, Any]]:
+    """Append one record per attempt. Fails closed: an attempt that cannot be validated is
+    still logged, as an unscored record with ``extra.malformed = true``, so that one bad line
+    never hides the trials around it (an audit log must not undercount)."""
+    written = []
+    for i, a in enumerate(attempts):
+        try:
+            if a.payload is None:
+                raise ValueError(a.error or "unparseable")
+            c = coerce_trial(a.payload)
+            rec = ledger.append(
+                strategy=c["strategy"],
+                sharpe=c["sharpe"],
+                n_obs=c["n_obs"],
+                periods_per_year=c["periods_per_year"],
+                source=source,
+                agent=agent,
+                session_id=session_id,
+                code_hash=code_hash,
+                dataset_hash=c["dataset_hash"],
+                extra={**c["extra"], **base_extra},
+            )
+        except Exception as exc:
+            error = a.error if a.payload is None else type(exc).__name__
+            rec = ledger.append(
+                strategy={},
+                source=source,
+                agent=agent,
+                session_id=session_id,
+                code_hash=code_hash,
+                extra={
+                    **base_extra,
+                    "unscored": True,
+                    "malformed": True,
+                    "error": error,
+                    "line_index": i,
+                },
+            )
+        written.append(rec)
+    return written
 
 
 def looks_like_backtest(command: str, pattern: str | None = None) -> bool:
@@ -123,27 +232,17 @@ def log_shell_event(
     lg = ledger
     session = event.get("session_id") or event.get("thread_id") or event.get("turn_id")
     code_hash = code_hash_for_command(command, cwd)
-    trials = parse_trial_lines(output)
-    written = []
-    for t in trials:
-        sharpe = t.pop("sharpe", None)
-        n_obs = t.pop("n_obs", None)
-        strategy = t.pop("strategy", {})
-        written.append(
-            lg.append(
-                strategy=strategy,
-                sharpe=float(sharpe) if sharpe is not None else None,
-                n_obs=int(n_obs) if n_obs is not None else None,
-                periods_per_year=float(t.pop("periods_per_year", 252.0)),
-                source="shell-hook",
-                agent=agent,
-                session_id=session,
-                code_hash=code_hash,
-                dataset_hash=t.pop("dataset_hash", None),
-                extra={"command": command[:2000], **t},
-            )
-        )
-    if not trials and looks_like_backtest(command):
+    attempts = parse_trial_attempts(output)
+    written = append_trials(
+        lg,
+        attempts,
+        source="shell-hook",
+        base_extra={"command": command[:2000]},
+        agent=agent,
+        session_id=session,
+        code_hash=code_hash,
+    )
+    if not attempts and looks_like_backtest(command):
         written.append(
             lg.append(
                 strategy={"command_hash": hash_json(command)},

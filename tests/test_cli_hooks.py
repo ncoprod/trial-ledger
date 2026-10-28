@@ -113,8 +113,9 @@ def test_hook_logs_emitted_trials(tmp_path):
         ]
     )
     written = hooks.log_shell_event(_claude_event("python sweep.py", out), lg, agent="claude")
-    assert len(written) == 2
+    assert len(written) == 3  # the unparseable line is still counted, as malformed
     assert lg.records()[1]["strategy"] == {"lb": 20}
+    assert lg.records()[2]["extra"]["malformed"] is True
     assert lg.records()[0]["session_id"] == "s-1"
 
 
@@ -144,3 +145,47 @@ def test_hook_main_never_fails(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(ev)))
     assert hooks.main(["--dir", str(tmp_path / "tl")]) == 0
     assert len(Ledger(tmp_path / "tl").records()) == 1
+
+
+MIXED_OUTPUT = "\n".join(
+    [
+        'TRIAL_LEDGER {"sharpe": 0.05, "n_obs": 1000, "strategy": {"lb": 10}}',
+        'TRIAL_LEDGER {"sharpe": "abc", "n_obs": 1000}',
+        'TRIAL_LEDGER {"sharpe": 0.03, "n_obs": 12.5}',
+        'TRIAL_LEDGER {"sharpe": 0.03, "n_obs": 500, "strategy": "not-an-object"}',
+        "TRIAL_LEDGER {broken json",
+        "TRIAL_LEDGER [1, 2, 3]",
+        'TRIAL_LEDGER {"sharpe": NaN, "n_obs": 500}',
+        'TRIAL_LEDGER {"sharpe": 0.04, "n_obs": 1000, "periods_per_year": -1}',
+        'TRIAL_LEDGER {"sharpe": 0.06, "n_obs": 1000, "strategy": {"lb": 30}}',
+    ]
+)
+N_ATTEMPTS, N_GOOD = 9, 2
+
+
+def _check_mixed(records):
+    assert len(records) == N_ATTEMPTS  # one record per attempt: nothing is dropped
+    good = [r for r in records if not r["extra"].get("malformed")]
+    bad = [r for r in records if r["extra"].get("malformed")]
+    assert [r["strategy"] for r in good] == [{"lb": 10}, {"lb": 30}]
+    assert len(bad) == N_ATTEMPTS - N_GOOD
+    assert all(r["sharpe"] is None and r["extra"]["unscored"] for r in bad)
+    assert {r["extra"]["error"] for r in bad} == {"ValueError", "TypeError", "JSONDecodeError"}
+
+
+def test_hook_fails_closed_on_malformed_trials(tmp_path):
+    lg = Ledger(tmp_path / "tl")
+    written = hooks.log_shell_event(_claude_event("python sweep.py", MIXED_OUTPUT), lg)
+    assert len(written) == N_ATTEMPTS
+    _check_mixed(lg.records())
+    assert lg.verify().ok
+    rep = build_report(lg)
+    assert rep.n_trials == N_GOOD and rep.n_unscored == N_ATTEMPTS - N_GOOD
+
+
+def test_exec_fails_closed_on_malformed_trials(tmp_path):
+    d = str(tmp_path / "tl")
+    script = tmp_path / "mixed.py"
+    script.write_text(f"print({MIXED_OUTPUT!r})\n")
+    assert cli.main(["--dir", d, "exec", "--", sys.executable, str(script)]) == 0
+    _check_mixed(Ledger(d).records())

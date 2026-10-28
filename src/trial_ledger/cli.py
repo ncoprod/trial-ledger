@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .hooks import code_hash_for_command, parse_trial_lines
+from .hooks import append_trials, code_hash_for_command, parse_trial_attempts
 from .ledger import Ledger
 from .report import build_report, format_report
 
@@ -102,19 +102,16 @@ def cmd_exec(args: argparse.Namespace) -> int:
     lg = _ledger(args)
     command = " ".join(cmd)
     code_hash = code_hash_for_command(command)
-    trials = parse_trial_lines(proc.stdout)
-    for t in trials:
-        lg.append(
-            strategy=t.pop("strategy", {}),
-            sharpe=t.pop("sharpe", None),
-            n_obs=t.pop("n_obs", None),
-            periods_per_year=float(t.pop("periods_per_year", 252.0)),
-            source="exec",
-            agent=args.agent,
-            code_hash=code_hash,
-            extra={"command": command, "returncode": proc.returncode, **t},
-        )
-    if not trials:
+    attempts = parse_trial_attempts(proc.stdout)
+    append_trials(
+        lg,
+        attempts,
+        source="exec",
+        base_extra={"command": command, "returncode": proc.returncode},
+        agent=args.agent,
+        code_hash=code_hash,
+    )
+    if not attempts:
         lg.append(
             strategy={},
             source="exec",
@@ -122,7 +119,7 @@ def cmd_exec(args: argparse.Namespace) -> int:
             code_hash=code_hash,
             extra={"command": command, "returncode": proc.returncode, "unscored": True},
         )
-    print(f"trial-ledger: logged {max(len(trials), 1)} run(s)", file=sys.stderr)
+    print(f"trial-ledger: logged {max(len(attempts), 1)} run(s)", file=sys.stderr)
     return proc.returncode
 
 
