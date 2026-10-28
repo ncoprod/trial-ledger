@@ -105,7 +105,9 @@ def probabilistic_sharpe_ratio(
     return float(sps.norm.cdf(z))
 
 
-def expected_max_sharpe(n_trials: float, var_trials_sr: float, mean_trials_sr: float = 0.0) -> float:
+def expected_max_sharpe(
+    n_trials: float, var_trials_sr: float, mean_trials_sr: float = 0.0
+) -> float:
     """Expected maximum of ``n_trials`` Sharpe ratios under the null (BLdP 2014, eq. 8 / prop. 1).
 
     E[max SR] ~= E[SR] + sqrt(V[SR]) * ((1-g) Z^-1(1 - 1/N) + g Z^-1(1 - 1/(N e)))
@@ -216,15 +218,15 @@ def cscv_splits(n_partitions: int) -> Iterator[tuple[tuple[int, ...], tuple[int,
 
 
 def _partition_bounds(n_rows: int, n_partitions: int) -> np.ndarray:
-    """Row boundaries of ``n_partitions`` contiguous, (almost) equal-sized blocks.
+    """Row boundaries of ``n_partitions`` contiguous, equal-sized blocks.
 
-    Like the paper and pypbo, trailing rows that do not fill a block are dropped so that
-    all blocks have the same length ``n_rows // n_partitions``.
+    All blocks have length ``n_rows // n_partitions``; the ``n_rows % n_partitions`` leading
+    (oldest) rows are dropped, as in pypbo, so the most recent data is always used.
     """
     size = n_rows // n_partitions
     if size < 2:
         raise ValueError("each partition needs at least 2 rows")
-    return np.arange(n_partitions + 1) * size
+    return n_rows % n_partitions + np.arange(n_partitions + 1) * size
 
 
 def pbo_cscv(
@@ -249,12 +251,12 @@ def pbo_cscv(
         raise ValueError("returns_matrix must be (T, N) with N >= 2")
     t, n = m.shape
     bounds = _partition_bounds(t, n_partitions)
-    size = bounds[1]
+    size = int(bounds[1] - bounds[0])
     logits, is_best, oos_best = [], [], []
 
     if metric is None:
         # sufficient statistics per block: (S, N)
-        blocks = m[: bounds[-1]].reshape(n_partitions, size, n)
+        blocks = m[bounds[0] : bounds[-1]].reshape(n_partitions, size, n)
         bsum = blocks.sum(axis=1)
         bsq = (blocks**2).sum(axis=1)
         half = (n_partitions // 2) * size
@@ -310,7 +312,10 @@ def purged_kfold(
     """
     if n_splits < 2:
         raise ValueError("n_splits must be >= 2")
-    emb = int(math.ceil(embargo * n_obs)) if isinstance(embargo, float) and embargo < 1 else int(embargo)
+    if isinstance(embargo, float) and embargo < 1:
+        emb = math.ceil(embargo * n_obs)
+    else:
+        emb = int(embargo)
     idx = np.arange(n_obs)
     for test in np.array_split(idx, n_splits):
         a, b = int(test[0]), int(test[-1]) + 1
