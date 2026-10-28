@@ -251,3 +251,51 @@ def test_full_command_capture_is_opt_in(tmp_path, monkeypatch):
     lg = Ledger(tmp_path / "tl")
     hooks.log_shell_event(_claude_event("python backtest.py --lookback 20"), lg)
     assert lg.records()[0]["extra"]["command"] == "python backtest.py --lookback 20"
+
+
+PATHOLOGICAL = {
+    "alnum_run": "a1" * 500_000,
+    "letters_run": "a" * 1_000_000,
+    "dash_run": "-" * 1_000_000,
+    "flag_like": "--x" * 333_334,
+    "slashed": "ab12/" * 200_000,
+    "assignments": "A=" * 500_000,
+    "auth_words": "authorization " * 75_000,
+}
+
+
+@pytest.mark.parametrize("name", sorted(PATHOLOGICAL))
+def test_redaction_of_1mb_input_is_fast(name):
+    import time
+
+    text = PATHOLOGICAL[name]
+    assert len(text) >= 1_000_000
+    t0 = time.perf_counter()
+    out = hooks.redact_command(text)
+    assert time.perf_counter() - t0 < 0.1
+    assert len(out) <= hooks.REDACT_MAX_CHARS
+
+
+@pytest.mark.parametrize("name", ["alnum_run", "dash_run", "flag_like", "slashed"])
+def test_redaction_patterns_scale_linearly(name):
+    """Even without the cap, no pattern may be quadratic: 4x the input, < 8x the time."""
+    import time
+
+    def best(text):
+        times = []
+        for _ in range(3):
+            t0 = time.perf_counter()
+            hooks._redact_uncapped(text)
+            times.append(time.perf_counter() - t0)
+        return min(times)
+
+    big = PATHOLOGICAL[name]
+    small = big[: len(big) // 4]
+    assert best(big) < 8 * best(small) + 0.01
+
+
+def test_redaction_keeps_paths_but_not_tokens_in_them():
+    path = "python /Users/me/AI/trial-ledger/experiments/results/run_2026_10_28.py"
+    assert hooks.redact_command(path) == path
+    tok = "Q2xhdWRlQ29kZTEyMzQ1Njc4OTBhYmNkZWZnaGlqa2xtbm9w"
+    assert tok not in hooks.redact_command(f"python x.py --in data/{tok}/r.csv")

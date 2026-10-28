@@ -189,8 +189,8 @@ _REDACTIONS: list[tuple[re.Pattern[str], str]] = [
     # --api-key X, --token=X, --password X ...
     (
         re.compile(
-            r"(?i)(--?[\w-]*(?:api[-_]?key|token|secret|passw(?:or)?d|auth|credential)"
-            r"[\w-]*)(=|\s+)(\"[^\"]*\"|'[^']*'|\S+)"
+            r"(?i)(?<![\w-])(--?[\w-]{0,40}"
+            r"(?:api[-_]?key|token|secret|passw(?:or)?d|auth|credential)[\w-]{0,40})(=|\s+)(\"[^\"]*\"|'[^']*'|\S+)"
         ),
         rf"\1\2{_R}",
     ),
@@ -211,18 +211,42 @@ _REDACTIONS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), _R),
     (re.compile(r"\bAIza[0-9A-Za-z_-]{30,}"), _R),
     (re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*"), _R),  # JWT
-    # generic: long hex, or long base64/url-safe runs mixing letters and digits
+    # generic: long hex runs (long base64/url-safe runs are handled by _GENERIC below)
     (re.compile(r"\b[0-9a-fA-F]{32,}\b"), _R),
-    (re.compile(r"(?=[A-Za-z0-9+/_=-]*\d)(?=[A-Za-z0-9+/_=-]*[A-Za-z])[A-Za-z0-9+_=-]{32,}"), _R),
 ]
+# A single linear scan; the "mixes letters and digits" test runs in the callback instead of
+# per-position lookaheads, which were quadratic on long inputs.
+_GENERIC = re.compile(r"[A-Za-z0-9+/_=-]{32,}")
+_HAS_DIGIT = re.compile(r"\d")
+_HAS_ALPHA = re.compile(r"[A-Za-z]")
+# Hard cap on the text scanned: the preview is PREVIEW_CHARS long, the margin leaves room for
+# redactions that shorten the text. Keeps the hook O(1) in the size of the command.
+REDACT_MAX_CHARS = PREVIEW_CHARS * 4
+
+
+def _generic_token(m: re.Match[str]) -> str:
+    tok = m.group(0)
+    if not (_HAS_DIGIT.search(tok) and _HAS_ALPHA.search(tok)):
+        return tok
+    if "/" in tok and "+" not in tok and "=" not in tok:
+        # Looks like a file path (e.g. results/run_2026_10_28.py): keep it unless one of its
+        # segments is itself a long token.
+        return "/".join(_GENERIC.sub(_generic_token, seg) for seg in tok.split("/"))
+    return _R
+
+
+def _redact_uncapped(text: str) -> str:
+    for pat, repl in _REDACTIONS:
+        text = pat.sub(repl, text)
+    return _GENERIC.sub(_generic_token, text)
 
 
 def redact_command(command: str) -> str:
-    """Best-effort removal of credentials from a shell command (for previews only)."""
-    out = command
-    for pat, repl in _REDACTIONS:
-        out = pat.sub(repl, out)
-    return out
+    """Best-effort removal of credentials from a shell command (for previews only).
+
+    Only the first ``REDACT_MAX_CHARS`` characters are scanned and returned.
+    """
+    return _redact_uncapped(command[:REDACT_MAX_CHARS])
 
 
 def command_fields(command: str) -> dict[str, Any]:
