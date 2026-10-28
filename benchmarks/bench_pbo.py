@@ -40,9 +40,19 @@ PYPBO_FILES = [
 ]
 CASES = [  # (T, N, S)
     (1000, 50, 8),
-    (2190, 100, 16),
-    (2190, 500, 16),
+    (1000, 10, 16),
+    (2190, 100, 10),
+    (2190, 500, 8),
+    (2190, 1000, 16),
 ]
+# pypbo keeps every split's IS and OOS matrices in memory: ~C(S, S/2) * T * N * 8 bytes.
+PYPBO_MAX_BYTES = 1.5e9
+
+
+def pypbo_bytes(t: int, n: int, s: int) -> float:
+    from math import comb
+
+    return comb(s, s // 2) * (t - t % s) * n * 8.0
 
 
 def sharpe_cols(x: np.ndarray) -> np.ndarray:
@@ -110,15 +120,20 @@ def main() -> None:
         m = np.random.default_rng(seed).standard_t(4, (t, n)) * 0.01
 
         ref = pbo_cscv(m, s)
-        res_pypbo = pypbo.pbo(m, S=s, metric_func=sharpe_cols, threshold=0, n_jobs=1)
         rust = pbo(m, s, backend="rust")
-        np.testing.assert_allclose(np.asarray(res_pypbo.logits), ref.logits, atol=1e-9)
         np.testing.assert_allclose(rust.logits, ref.logits, atol=1e-12)
-        assert res_pypbo.pbo == ref.pbo == rust.pbo
-
-        t_pypbo = timeit(
-            lambda: pypbo.pbo(m, S=s, metric_func=sharpe_cols, threshold=0, n_jobs=1), repeat=1
-        )
+        assert rust.pbo == ref.pbo
+        run_pypbo = pypbo_bytes(t, n, s) <= PYPBO_MAX_BYTES
+        t_pypbo = None
+        if run_pypbo:
+            res_pypbo = pypbo.pbo(m, S=s, metric_func=sharpe_cols, threshold=0, n_jobs=1)
+            np.testing.assert_allclose(np.asarray(res_pypbo.logits), ref.logits, atol=1e-9)
+            assert abs(res_pypbo.pbo - ref.pbo) < 1e-12  # pypbo sums phi/C, we take a mean
+            del res_pypbo
+            t_pypbo = timeit(
+                lambda: pypbo.pbo(m, S=s, metric_func=sharpe_cols, threshold=0, n_jobs=1),
+                repeat=1,
+            )
         t_generic = timeit(lambda: pbo_cscv(m, s, metric=sharpe_cols), repeat=1)
         t_numpy = timeit(lambda: pbo_cscv(m, s), repeat=3)
         t_rust1 = rust_single_thread(t, n, s, seed, repeat=5)
@@ -126,14 +141,15 @@ def main() -> None:
         row = {
             "T": t, "N": n, "S": s, "splits": ref.n_splits, "pbo": ref.pbo,
             "pypbo_s": t_pypbo,
+            "pypbo_est_memory_gb": pypbo_bytes(t, n, s) / 1e9,
             "numpy_generic_s": t_generic,
             "numpy_blockstats_s": t_numpy,
             "rust_1thread_s": t_rust1,
             "rust_threads": core.num_threads(),
             "rust_parallel_s": t_rust,
         }  # fmt: skip
-        row["speedup_rust_vs_pypbo"] = t_pypbo / t_rust
-        row["speedup_rust1_vs_pypbo"] = t_pypbo / t_rust1
+        row["speedup_rust_vs_pypbo"] = t_pypbo / t_rust if t_pypbo else None
+        row["speedup_rust1_vs_pypbo"] = t_pypbo / t_rust1 if t_pypbo else None
         row["speedup_rust1_vs_numpy_blockstats"] = t_numpy / t_rust1
         row["speedup_rust_vs_numpy_blockstats"] = t_numpy / t_rust
         rows.append(row)
@@ -147,6 +163,7 @@ def main() -> None:
         "numpy": np.__version__,
         "pypbo_commit": PYPBO_COMMIT,
         "timing": "best of N wall-clock runs (pypbo and numpy_generic: 1 run)",
+        "pypbo_skip_rule": f"skipped when its estimated memory exceeds {PYPBO_MAX_BYTES:.1e} B",
     }
     OUT.mkdir(exist_ok=True)
     (OUT / "pbo_benchmark.json").write_text(json.dumps({"meta": meta, "rows": rows}, indent=1))
@@ -159,11 +176,17 @@ def main() -> None:
         "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
+        if r["pypbo_s"] is None:
+            pyp = f"not run (~{r['pypbo_est_memory_gb']:.0f} GB)"
+            sp = "n/a"
+        else:
+            pyp = f"{r['pypbo_s']:.2f} s"
+            sp = f"{r['speedup_rust_vs_pypbo']:,.0f}x"
         lines.append(
-            f"| {r['T']} | {r['N']} | {r['S']} | {r['splits']} | {r['pypbo_s']:.2f} s "
+            f"| {r['T']} | {r['N']} | {r['S']} | {r['splits']} | {pyp} "
             f"| {r['numpy_generic_s']:.2f} s | {r['numpy_blockstats_s'] * 1e3:.1f} ms "
             f"| {r['rust_1thread_s'] * 1e3:.2f} ms | {r['rust_parallel_s'] * 1e3:.2f} ms "
-            f"| {r['speedup_rust_vs_pypbo']:,.0f}x "
+            f"| {sp} "
             f"| {r['speedup_rust1_vs_numpy_blockstats']:.1f}x |"
         )
     (OUT / "pbo_benchmark.md").write_text("\n".join(lines) + "\n")

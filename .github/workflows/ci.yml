@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --group dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  test-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      # pure-Python install: the Rust parity tests are skipped here
+      - run: uv sync --extra mcp --group dev --group experiments
+      - run: uv run pytest
+
+  rust:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: cargo test
+        run: cargo test --release
+        working-directory: rust
+      - uses: astral-sh/setup-uv@v6
+      - name: build the extension with maturin and run the full suite
+        run: |
+          uv sync --all-extras --group dev --group experiments
+          uv run python -c "import trial_ledger_core; print(trial_ledger_core.__version__)"
+          uv run pytest
+
+  reproduce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --extra mcp --group dev --group experiments
+      - name: replay every agent episode from the committed response cache
+        run: uv run python -m experiments.run replay-check

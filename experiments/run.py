@@ -105,26 +105,54 @@ def cmd_figures(args) -> int:
     return 0
 
 
-def cmd_reproduce(args) -> int:
-    """Replay all cached episodes (no API calls), then rebuild tables and figures."""
+def _trial_fingerprint(run_dir) -> list[tuple[str, str]]:
+    from trial_ledger.ledger import Ledger
+
+    return [(r["strategy_hash"], r["returns_hash"]) for r in Ledger(run_dir / "ledger").records()]
+
+
+def cmd_replay_check(args) -> int:
+    """Replay every committed episode from the response cache (no API calls) into a temporary
+    directory and check that the agent makes exactly the same trials and submission."""
+    import tempfile
     from pathlib import Path
 
-    from .agent import RESULTS
+    from .agent import RESULTS, run_episode, run_random_search
 
-    episodes = []
-    for ep in sorted((RESULTS / "runs").glob("*/*/episode.json")):
-        episodes.append(json.loads(ep.read_text()))
-    from .agent import run_episode, run_random_search
+    eps = [json.loads(p.read_text()) for p in sorted((RESULTS / "runs").glob("*/*/episode.json"))]
+    bad = 0
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        for e in eps:
+            if e["model"] == "random-search":
+                new = run_random_search(e["market"], e["seed"], e["rep"], results_dir=tmp)
+                sub = "random-search"
+            else:
+                new = run_episode(
+                    e["model"], e["market"], e["seed"], e["rep"], offline=True, results_dir=tmp
+                )
+                sub = e["model"].replace("/", "__")
+            rid = e["run_id"]
+            same = (
+                _trial_fingerprint(RESULTS / "runs" / sub / rid)
+                == _trial_fingerprint(tmp / "runs" / sub / rid)
+                and new["submission"] == e["submission"]
+                and new["status"] == e["status"]
+            )
+            bad += not same
+            if not same:
+                print(f"MISMATCH {e['model']} {rid}", flush=True)
+    print(f"replayed {len(eps)} episodes from the cache: {len(eps) - bad} identical, {bad} differ")
+    return 1 if bad else 0
 
-    for e in episodes:
-        if e["model"] == "random-search":
-            run_random_search(e["market"], e["seed"], e["rep"])
-        else:
-            run_episode(e["model"], e["market"], e["seed"], e["rep"], offline=True)
-    print(f"replayed {len(episodes)} episodes from {Path('experiments/cache')}")
+
+def cmd_reproduce(args) -> int:
+    """Rebuild every table and figure from the committed ledgers (re-running each logged
+    trial and checking its returns hash), after replaying all episodes from the cache."""
+    rc = cmd_replay_check(args)
     cmd_analyze(argparse.Namespace(models=None))
     cmd_figures(args)
-    return 0
+    return rc
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -151,6 +179,7 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--models", nargs="*", default=None)
     c.set_defaults(func=cmd_analyze)
     sub.add_parser("figures").set_defaults(func=cmd_figures)
+    sub.add_parser("replay-check").set_defaults(func=cmd_replay_check)
     sub.add_parser("reproduce").set_defaults(func=cmd_reproduce)
     args = ap.parse_args(argv)
     return int(args.func(args))

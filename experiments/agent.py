@@ -152,11 +152,12 @@ def run_episode(
     rep: int = 0,
     offline: bool = False,
     temperature: float = 0.7,
+    results_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Run (or replay from cache) one agent episode; writes its ledger and transcript."""
     market, _, _ = make_market(kind, seed)
     run_id = f"{kind}-s{seed}-r{rep}"
-    out_dir = RESULTS / "runs" / slug(model) / run_id
+    out_dir = (results_dir or RESULTS) / "runs" / slug(model) / run_id
     if out_dir.exists():
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True)
@@ -275,12 +276,18 @@ def run_episode(
 # ------------------------------------------------------------------------- baseline
 
 
-def run_random_search(kind: str, seed: int, rep: int = 0, budget: int = TOOL_BUDGET):
+def run_random_search(
+    kind: str,
+    seed: int,
+    rep: int = 0,
+    budget: int = TOOL_BUDGET,
+    results_dir: Path | None = None,
+):
     """Non-LLM baseline: the same tool budget spent on random backtests and random sweeps;
     it 'submits' its best trial and reports the true N."""
     market, _, _ = make_market(kind, seed)
     run_id = f"{kind}-s{seed}-r{rep}"
-    out_dir = RESULTS / "runs" / "random-search" / run_id
+    out_dir = (results_dir or RESULTS) / "runs" / "random-search" / run_id
     if out_dir.exists():
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True)
