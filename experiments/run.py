@@ -38,9 +38,9 @@ def _seeds(spec: str) -> list[int]:
 
 
 def _jobs(models, markets, seeds, btc_reps):
-    """Interleaved by seed so that every model/market gets results early."""
-    for s in sorted(set(seeds) | set(range(btc_reps))):
-        for model in models:
+    """Model by model (in the order given), interleaved by seed within a model."""
+    for model in models:
+        for s in sorted(set(seeds) | set(range(btc_reps))):
             for kind in markets:
                 if (kind == "btc" and s < btc_reps) or (kind != "btc" and s in seeds):
                     yield model, kind, s

@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import sys
 import threading
 import time
 from pathlib import Path
@@ -167,6 +168,12 @@ class ChatClient:
                 if not retriable:
                     raise
                 wait = min(120.0, 5.0 * 2**attempt) * (0.5 + random.random())
+                print(
+                    f"[retry] {self.model} attempt {attempt + 1}: {type(exc).__name__} "
+                    f"status={status}; sleeping {wait:.0f}s",
+                    file=sys.stderr,
+                    flush=True,
+                )
                 time.sleep(wait)
         raise RuntimeError(
             f"{self.model}: giving up after {self.max_retries} attempts: "
