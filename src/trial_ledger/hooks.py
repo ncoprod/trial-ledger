@@ -170,6 +170,77 @@ def append_trials(
     return written
 
 
+CAPTURE_ENV = "TRIAL_LEDGER_CAPTURE_COMMANDS"
+PREVIEW_CHARS = 300
+_R = "<redacted>"
+# Ordered: specific shapes first, generic high-entropy runs last.
+_REDACTIONS: list[tuple[re.Pattern[str], str]] = [
+    # HTTP auth headers: "Authorization: Bearer x", "-H 'X-Api-Key: x'"
+    (
+        re.compile(
+            r"(?i)\b((?:proxy-)?authorization|x-api-key|api-key|x-auth-token)"
+            r"(\s*[:=]\s*)(?:(bearer|basic|token)\s+)?[^\s'\"]+"
+        ),
+        rf"\1\2\3 {_R}",
+    ),
+    (re.compile(r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}"), rf"\1 {_R}"),
+    # VAR=value assignments / env prefixes (FOO=bar python x.py, export FOO=bar)
+    (re.compile(r"(?<![\w-])([A-Za-z_][A-Za-z0-9_]*)=(\"[^\"]*\"|'[^']*'|[^\s;&|]+)"), rf"\1={_R}"),
+    # --api-key X, --token=X, --password X ...
+    (
+        re.compile(
+            r"(?i)(--?[\w-]*(?:api[-_]?key|token|secret|passw(?:or)?d|auth|credential)"
+            r"[\w-]*)(=|\s+)(\"[^\"]*\"|'[^']*'|\S+)"
+        ),
+        rf"\1\2{_R}",
+    ),
+    # secrets in URLs: user:pass@host and ?token=...
+    (re.compile(r"(?i)(://[^/\s:@]+:)[^@\s/]+@"), rf"\1{_R}@"),
+    (
+        re.compile(r"(?i)([?&](?:token|key|api_key|apikey|access_token|secret|sig)=)[^&\s'\"]+"),
+        rf"\1{_R}",
+    ),
+    # vendor token prefixes
+    (re.compile(r"\b(?:sk|pk|rk)-[A-Za-z0-9_-]{8,}"), _R),
+    (re.compile(r"\b(?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{8,}"), _R),
+    (re.compile(r"\bgh[pousr]_[A-Za-z0-9]{16,}"), _R),
+    (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{16,}"), _R),
+    (re.compile(r"\bnvapi-[A-Za-z0-9_-]{8,}"), _R),
+    (re.compile(r"\bxox[abposr]-[A-Za-z0-9-]{8,}"), _R),
+    (re.compile(r"\bhf_[A-Za-z0-9]{16,}"), _R),
+    (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), _R),
+    (re.compile(r"\bAIza[0-9A-Za-z_-]{30,}"), _R),
+    (re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*"), _R),  # JWT
+    # generic: long hex, or long base64/url-safe runs mixing letters and digits
+    (re.compile(r"\b[0-9a-fA-F]{32,}\b"), _R),
+    (re.compile(r"(?=[A-Za-z0-9+/_=-]*\d)(?=[A-Za-z0-9+/_=-]*[A-Za-z])[A-Za-z0-9+_=-]{32,}"), _R),
+]
+
+
+def redact_command(command: str) -> str:
+    """Best-effort removal of credentials from a shell command (for previews only)."""
+    out = command
+    for pat, repl in _REDACTIONS:
+        out = pat.sub(repl, out)
+    return out
+
+
+def command_fields(command: str) -> dict[str, Any]:
+    """What the ledger stores about a command.
+
+    By default only a SHA-256 of the exact command and a short redacted preview; the raw
+    command (which may contain API keys or auth headers) is stored only when
+    ``TRIAL_LEDGER_CAPTURE_COMMANDS=1``.
+    """
+    fields: dict[str, Any] = {
+        "command_sha256": sha256_hex(command),
+        "command_preview": redact_command(command)[:PREVIEW_CHARS],
+    }
+    if os.environ.get(CAPTURE_ENV, "").strip().lower() in {"1", "true", "yes"}:
+        fields["command"] = command[:2000]
+    return fields
+
+
 def looks_like_backtest(command: str, pattern: str | None = None) -> bool:
     pat = pattern or os.environ.get("TRIAL_LEDGER_HOOK_PATTERN") or DEFAULT_PATTERN
     runs_code = re.search(r"\b(python3?|uv run|poetry run|pytest|Rscript|julia|node)\b", command)
@@ -237,7 +308,7 @@ def log_shell_event(
         lg,
         attempts,
         source="shell-hook",
-        base_extra={"command": command[:2000]},
+        base_extra=command_fields(command),
         agent=agent,
         session_id=session,
         code_hash=code_hash,
@@ -250,7 +321,7 @@ def log_shell_event(
                 agent=agent,
                 session_id=session,
                 code_hash=code_hash,
-                extra={"command": command[:2000], "unscored": True},
+                extra={**command_fields(command), "unscored": True},
             )
         )
     return written

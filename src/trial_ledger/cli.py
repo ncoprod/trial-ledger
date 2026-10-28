@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .hooks import append_trials, code_hash_for_command, parse_trial_attempts
+from .hooks import append_trials, code_hash_for_command, command_fields, parse_trial_attempts
 from .ledger import Ledger
 from .report import build_report, format_report
 
@@ -107,7 +107,7 @@ def cmd_exec(args: argparse.Namespace) -> int:
         lg,
         attempts,
         source="exec",
-        base_extra={"command": command, "returncode": proc.returncode},
+        base_extra={**command_fields(command), "returncode": proc.returncode},
         agent=args.agent,
         code_hash=code_hash,
     )
@@ -117,7 +117,7 @@ def cmd_exec(args: argparse.Namespace) -> int:
             source="exec",
             agent=args.agent,
             code_hash=code_hash,
-            extra={"command": command, "returncode": proc.returncode, "unscored": True},
+            extra={**command_fields(command), "returncode": proc.returncode, "unscored": True},
         )
     print(f"trial-ledger: logged {max(len(attempts), 1)} run(s)", file=sys.stderr)
     return proc.returncode

@@ -189,3 +189,65 @@ def test_exec_fails_closed_on_malformed_trials(tmp_path):
     script.write_text(f"print({MIXED_OUTPUT!r})\n")
     assert cli.main(["--dir", d, "exec", "--", sys.executable, str(script)]) == 0
     _check_mixed(Ledger(d).records())
+
+
+# Fake, token-shaped strings built at runtime (not real credentials).
+FAKE = {
+    "nv": "nvapi-" + "Ab3dEf9h" * 6,
+    "sk": "sk-proj-" + "Zx81Qw7e" * 5,
+    "gh": "gho_" + "Kp4mN7qR" * 5,
+    "jwt": "eyJhbGciOiJIUzI1NiJ9." + "eyJzdWIiOiIxIn0" + ".c2lnbmF0dXJlMTIz",
+    "hex": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "plain": "hunter2-not-token-shaped",
+}
+SECRET_CMD = (
+    f"NVIDIA_API_KEY={FAKE['nv']} export DB_PASS='{FAKE['plain']}'; "
+    f'OPENAI_API_KEY="{FAKE["sk"]}" uv run python backtest.py --fast 5 '
+    f"--api-key {FAKE['plain']} --token={FAKE['gh']} "
+    f"&& curl -H 'Authorization: Bearer {FAKE['jwt']}' "
+    f"'https://user:{FAKE['plain']}@example.com/x?token={FAKE['hex']}&n=3' && echo {FAKE['gh']}"
+)
+
+
+def test_redact_command_strips_credentials():
+    red = hooks.redact_command(SECRET_CMD)
+    for value in FAKE.values():
+        assert value not in red, value
+    assert "backtest.py --fast 5" in red
+    assert "NVIDIA_API_KEY=<redacted>" in red
+    assert "Authorization: Bearer <redacted>" in red
+    # ordinary commands are left readable
+    plain = "uv run python experiments/sweep.py --family momentum --lookback 20"
+    assert hooks.redact_command(plain) == plain
+
+
+def test_ledger_stores_hash_and_preview_not_raw_command(tmp_path, monkeypatch):
+    monkeypatch.delenv(hooks.CAPTURE_ENV, raising=False)
+    lg = Ledger(tmp_path / "tl")
+    out = 'TRIAL_LEDGER {"sharpe": 0.05, "n_obs": 1000}'
+    hooks.log_shell_event(_claude_event(SECRET_CMD, out), lg)  # scored path
+    hooks.log_shell_event(_claude_event(SECRET_CMD), lg)  # unscored path
+    raw = lg.path.read_text()
+    for value in FAKE.values():
+        assert value not in raw, value
+    recs = lg.records()
+    assert len(recs) == 2
+    for r in recs:
+        assert "command" not in r["extra"]
+        assert r["extra"]["command_sha256"] == hooks.sha256_hex(SECRET_CMD)
+        assert "backtest.py" in r["extra"]["command_preview"]
+
+
+def test_exec_does_not_store_raw_argv(tmp_path, monkeypatch):
+    monkeypatch.delenv(hooks.CAPTURE_ENV, raising=False)
+    d = str(tmp_path / "tl")
+    rc = cli.main(["--dir", d, "exec", "--", sys.executable, "-c", "pass", f"--token={FAKE['nv']}"])
+    assert rc == 0
+    assert FAKE["nv"] not in Ledger(d).path.read_text()
+
+
+def test_full_command_capture_is_opt_in(tmp_path, monkeypatch):
+    monkeypatch.setenv(hooks.CAPTURE_ENV, "1")
+    lg = Ledger(tmp_path / "tl")
+    hooks.log_shell_event(_claude_event("python backtest.py --lookback 20"), lg)
+    assert lg.records()[0]["extra"]["command"] == "python backtest.py --lookback 20"
