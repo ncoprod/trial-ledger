@@ -123,6 +123,18 @@ USER_TASK = (
 )
 
 
+def blind(result: dict[str, Any]) -> dict[str, Any]:
+    """Hide the ledger's running trial counter from the agent.
+
+    The MCP server returns a ``trial`` id with each result; shown to the agent it would give
+    away the true N, and the experiment measures the agent's own accounting.
+    """
+    out = {k: v for k, v in result.items() if k != "trial"}
+    if isinstance(out.get("top"), list):
+        out["top"] = [{k: v for k, v in t.items() if k != "trial"} for t in out["top"]]
+    return out
+
+
 def _parse_args(raw: str | None) -> dict[str, Any]:
     if not raw:
         return {}
@@ -220,6 +232,7 @@ def run_episode(
                             )
                     except Exception as exc:  # malformed arguments from the model
                         result = {"error": f"{type(exc).__name__}: {exc}"}
+                    result = blind(result)
                     left = TOOL_BUDGET - tool_calls
                     result["tool_calls_left"] = left
                     if left == 0:
