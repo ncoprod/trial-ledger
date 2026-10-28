@@ -90,11 +90,12 @@ def cmd_baseline(args) -> int:
 
 def cmd_analyze(args) -> int:
     from .analyze import collect, summarise, write_tables
+    from .report_md import main as write_results_md
 
     rows = collect(args.models)
     summary = summarise(rows)
     write_tables(rows, summary)
-    print(json.dumps(summary, indent=1))
+    write_results_md()
     return 0
 
 
