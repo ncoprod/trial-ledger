@@ -71,3 +71,39 @@ def test_mcp_server_roundtrip(service):
 
     asyncio.run(go())
     assert service.ledger.verify().ok
+
+
+def test_mcp_server_over_stdio(tmp_path):
+    """Launch trial-ledger-mcp as a subprocess, like Claude Code or Codex would."""
+    pytest.importorskip("mcp")
+    try:
+        from mcp import Client, StdioServerParameters
+    except ImportError:
+        pytest.skip("needs mcp>=2")
+    import sys
+
+    rng = np.random.default_rng(1)
+    csv = tmp_path / "prices.csv"
+    closes = 100 * np.cumprod(1 + rng.standard_t(4, 400) * 0.02)
+    csv.write_text("date,close\n" + "".join(f"d{i:04d},{c}\n" for i, c in enumerate(closes)))
+    ledger_dir = tmp_path / "tl"
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "trial_ledger.mcp_server", "--data", str(csv), "--ledger", str(ledger_dir),
+              "--hide-trial-ids", "--holdout-from", "d0300"],
+    )  # fmt: skip
+
+    async def go():
+        async with Client(params) as client:
+            desc = json.loads((await client.call_tool("describe_dataset", {})).content[0].text)
+            assert desc["n_obs"] == 300  # rows from the holdout date on are hidden
+            res = await client.call_tool(
+                "run_sweep", {"family": "momentum", "grid": {"lookback": [5, 10, 20]}}
+            )
+            payload = json.loads(res.content[0].text)
+            assert payload["n_evaluated"] == 3
+            assert all("trial" not in t for t in payload["top"])
+
+    asyncio.run(go())
+    lg = Ledger(ledger_dir)
+    assert len(lg.records()) == 3 and lg.verify(check_returns=True).ok

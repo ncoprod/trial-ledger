@@ -28,6 +28,7 @@ class BacktestService:
         source: str = "mcp",
         store_returns: bool = True,
         max_sweep: int = MAX_SWEEP,
+        expose_trial_ids: bool = True,
     ):
         self.market = market
         self.ledger = ledger
@@ -36,6 +37,7 @@ class BacktestService:
         self.source = source
         self.store_returns = store_returns
         self.max_sweep = max_sweep
+        self.expose_trial_ids = expose_trial_ids
         self.n_calls = 0
         self.returns_by_seq: dict[int, np.ndarray] = {}
 
@@ -60,7 +62,8 @@ class BacktestService:
             store_returns=self.store_returns,
         )
         self.returns_by_seq[rec["seq"]] = res.returns
-        return {"trial": rec["seq"], "strategy": res.spec, **res.summary()}
+        out = {"trial": rec["seq"]} if self.expose_trial_ids else {}
+        return {**out, "strategy": res.spec, **res.summary()}
 
     # ------------------------------------------------------------------ tools
     def run_backtest(self, strategy: dict[str, Any]) -> dict[str, Any]:

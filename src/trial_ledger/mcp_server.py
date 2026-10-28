@@ -40,6 +40,7 @@ def build_service(args: argparse.Namespace) -> BacktestService:
         agent=args.agent,
         session_id=args.session or uuid.uuid4().hex[:12],
         source="mcp",
+        expose_trial_ids=not args.hide_trial_ids,
     )
 
 
@@ -125,6 +126,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--holdout-from", default=os.environ.get("TRIAL_LEDGER_HOLDOUT_FROM"))
     ap.add_argument("--agent", default=os.environ.get("TRIAL_LEDGER_AGENT"))
     ap.add_argument("--session", default=os.environ.get("TRIAL_LEDGER_SESSION"))
+    ap.add_argument(
+        "--hide-trial-ids",
+        action="store_true",
+        help="do not return the ledger's trial id with results (used in the experiment so the "
+        "agent's self-reported N is its own count)",
+    )
     return ap.parse_args(argv)
 
 
