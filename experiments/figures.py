@@ -133,7 +133,7 @@ def fig_trial_count(rows: list[dict]) -> Path:
     ax.set_yscale("log")
     ax.set_xlabel("ledger N (distinct return series logged)", color=INK)
     ax.set_ylabel("trials the agent says it tested", color=INK)
-    ax.set_title("Self-reported vs ledger trial count", loc="left", color=INK, fontsize=11)
+    ax.set_title("Self-reported trial counts: null + BTC", loc="left", color=INK, fontsize=11)
     ax.legend(frameon=False, fontsize=7.5)
     _style(ax)
     fig.tight_layout()

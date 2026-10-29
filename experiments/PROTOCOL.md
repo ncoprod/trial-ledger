@@ -50,6 +50,8 @@ Ledger N is the number of distinct return-series hashes within an episode.
 Repeated or equivalent evaluations count once for N, while the ledger retains
 every evaluation record. Claimed N is the agent's positive integer self-report.
 The running ledger counter is hidden; individual sweep sizes remain visible.
+Count-accounting summaries retain every positive claim, including invalid final
+strategies; missing claims are not treated as accurate claims.
 
 Invalid submissions, timeouts and provider failures are retained, never replaced
 with the best ledger trial or a different seed. Startup/authentication pilots are

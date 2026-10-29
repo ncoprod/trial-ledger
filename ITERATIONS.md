@@ -381,3 +381,23 @@ pre-reboot strategy/return fingerprints are identical. One provider timeout
 recovered with backoff. The checkpoint includes the completed receipt reference.
 Iteration 21 verification outcome: 11 focused tests PASS; ruff check/format PASS.
 Main cfdcaaf1 passes all GitHub CI jobs (40876756870).
+
+## Iteration 22 — retain invalid strategies' usable trial-count claims
+
+- Hypothesis: count accuracy remains measurable even when a final strategy cannot
+  be scored. Filtering claims by valid strategy status hides available accounting
+  evidence and disagrees with the per-model summary population.
+- Initial result: regression FAIL, an invalid strategy with a positive claim was
+  counted as zero available claims. The actual NIM signflip seed-11 episode
+  claimed 12 against 113 distinct logged return series.
+- Change: one-line cohort accounting filter uses all positive claims from
+  attempts. Acceptance and paired DSR comparisons still require valid scores.
+- Command: `uv run --no-sync pytest tests/test_experiment.py -k invalid_submission --maxfail=1`;
+  rerun experiment/paired tests and ruff after the fix.
+- Result files: final `paired_tests.json`, `episodes.json`; regression in
+  `tests/test_experiment.py`. This retains more failure evidence without
+  introducing an accepted/rejected score for an invalid submission.
+
+Iteration 22 verification: 11 focused tests PASS, ruff check/format PASS. The
+trial-count figure title also identifies its actual null-plus-BTC population;
+acceptance figures remain restricted to valid null-market picks.

@@ -102,7 +102,7 @@ def main(rows: list[dict] | None = None) -> None:
                 result[key]["market_seed_cluster_bootstrap_95_ci"] = np.quantile(
                     samples, [0.025, 0.975]
                 ).tolist()
-        claims = [r for r in valid if r.get("claimed_n")]
+        claims = [r for r in attempts if r.get("claimed_n")]
         under = [r for r in claims if r["claimed_n"] < r["n_ledger"]]
         result["underreported"] = len(under)
         result["claims_available"] = len(claims)

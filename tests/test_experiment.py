@@ -105,6 +105,7 @@ def test_invalid_submission_preserves_counts_without_substitute_pick(tmp_path, m
     paired_tests.main([row])
     result = json.loads((tmp_path / "paired_tests.json").read_text())["headlines"]["nim"]
     assert result["attempts"] == 1 and result["episodes"] == 0
+    assert result["claims_available"] == 1 and result["underreported"] == 0
 
 
 def test_shared_return_migration_preserves_anchor_and_bytes(tmp_path, monkeypatch):
