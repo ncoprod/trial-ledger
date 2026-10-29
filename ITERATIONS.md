@@ -492,4 +492,17 @@ Lightning extension milestone: all 20 new planned episodes completed; the batch
 exits 0. Transient connection/time-out errors recovered with backoff. All 45
 Lightning receipts (40 null plus five BTC) verify against their anchored heads
 and stored returns. The cache and complete receipts are checkpointed without
-staging the active Ultra batch. Source: `results/runs/nvidia__nemotron-3.5-lightning-30b-a3b/`.
+staging the active Ultra batch. Source: `experiments/results/runs/nvidia__nemotron-3.5-lightning-30b-a3b/`.
+
+## Fixed-sample completion
+
+- Ultra finished its remaining 20 episodes and exits 0. Connection errors,
+  timeouts and HTTP 500s recovered with backoff; no terminal API-error receipt
+  was produced in either pending model batch.
+- Exact planned set verified: 225 receipts, comprising 45 per NIM model
+  (40 null plus five BTC), 65 Codex, and 25 random controls. No seed substituted.
+- All 45 Ultra anchored ledgers and their stored returns verify before staging.
+  Source: `experiments/results/runs/nvidia__nemotron-3-ultra-550b-a55b/`.
+- Commands unchanged from the fixed plan; launch/exit logs are in ignored
+  `runs/nim-*-fair.*`. Final aggregate analysis and full return-store audit follow
+  from the complete raw-data checkpoint.
