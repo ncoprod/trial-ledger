@@ -413,3 +413,10 @@ returns are included. Full local suite: 111 passed in 19.32 s
 Iteration 22 reporting clarification: label the older pooled paragraph as valid
 picks, and show the usable-claim denominator beside cohort under-report counts.
 This makes the two populations explicit without changing any score or test.
+
+Iteration 20 model milestone: the resumed gpt-oss batch exits 0 after all five
+remaining episodes. The full model now has the prespecified 40 null episodes
+(seeds 0-19 on both markets) plus five BTC episodes. The 359-record maintenance
+checkpoint from the earlier serial-runner fix also matches the completed
+signflip seed-12 trial fingerprints. These are replayed prefixes, not new
+independent selections. Lightning and Ultra remain queued for shared NIM slots.
