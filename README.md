@@ -49,7 +49,8 @@ Rates describe valid completed null-market picks; failed attempts remain in the
 reported denominator accounting and are never replaced with a best ledger trial.
 Intervals are nominal Wilson intervals. Models reuse market seeds, so pooled iid
 inference is not claimed; market/seed cluster-bootstrap intervals are also in
-[the paired results](experiments/results/paired_tests.json).
+[the paired results](experiments/results/paired_tests.json). When no picks pass, the
+percentile bootstrap collapses to zero; retain the Wilson upper bound.
 
 ![Null-market acceptance with Wilson intervals](experiments/results/figures/false_discovery.png)
 

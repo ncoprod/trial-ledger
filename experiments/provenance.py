@@ -49,6 +49,7 @@ def write_manifest() -> None:
             },
             "nim_temperature": 0.7,
             "tool_budget": 30,
+            "sharpe_target": 1.0,
             "fee_bps": 5.0,
             "is_period": ["2018-01-01", "2023-12-31"],
             "oos_period": ["2024-01-01", "2026-09-30"],

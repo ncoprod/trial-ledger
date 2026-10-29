@@ -332,3 +332,15 @@ Verification milestone: full suite 108 PASS in 8.99 s; Actions 40853488417 PASS.
 - Verification: 110 pytest and three cargo tests pass. The 941d2e49 milestone
   passes all seven GitHub CI jobs (40859304489). Exported figures visually checked;
   local README links resolve. Final NIM aggregation and final-main CI remain open.
+
+## Iteration 19 — clarify boundary uncertainty and missing deployment metadata
+
+- Hypothesis: a zero-pass percentile-bootstrap interval could be mistaken for
+  proof of zero risk, despite the nonzero Wilson upper bound.
+- Change: explicitly document the bootstrap degeneracy; retain Wilson bounds.
+  Record the unchanged Sharpe search target in the generation manifest and call
+  hosted revisions unrecorded rather than implying a verified service capability.
+- Command: `uv run --no-sync ruff check .`; `uv run --no-sync ruff format --check .`.
+- Result: PASS. This changes explanatory metadata, not scores, thresholds,
+  prompts, candidates or held-out evaluations. Final paired output will include
+  the caveat. Source: `experiments/paired_tests.py`, `provenance.py`, README.

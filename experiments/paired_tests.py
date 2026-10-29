@@ -182,6 +182,7 @@ def main(rows: list[dict] | None = None) -> None:
         "caveats": [
             "Threshold sensitivity is exploratory; acceptance threshold remains 0.95.",
             "Wilson intervals describe episode proportions; models share market seeds.",
+            "Percentile bootstrap degenerates with zero passes; retain the Wilson bound.",
             "Pooled episodes are not independent; inference tests are model-specific.",
             "No difference in decisions is not evidence that counts are equivalent.",
         ],
