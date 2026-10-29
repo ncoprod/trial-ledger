@@ -14,7 +14,6 @@ import argparse
 import json
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import nullcontext
 
 from .markets import MARKET_KINDS
@@ -51,8 +50,8 @@ def cmd_agents(args) -> int:
     from .agent import RESULTS, run_episode
     from .llm import nim_slot, slug
 
-    if not args.offline and args.workers != 1:
-        raise ValueError("online batches must use one worker per shared NIM slot")
+    if args.workers != 1:
+        raise ValueError("batches are serial; use one worker per shared NIM slot")
 
     jobs = list(_jobs(args.models, args.markets, _seeds(args.seeds), args.btc_reps))
     if args.resume:
@@ -60,18 +59,16 @@ def cmd_agents(args) -> int:
         def complete(job):
             m, k, s = job
             p = RESULTS / "runs" / slug(m) / f"{k}-s{s}-r0" / "episode.json"
-            return p.exists() and json.loads(p.read_text())["status"] == "ok"
+            return p.exists()
 
         jobs = [j for j in jobs if not complete(j)]
     print(f"{len(jobs)} episodes, {args.workers} workers, offline={args.offline}", flush=True)
     t0 = time.time()
     failures = 0
-    with nullcontext() if args.offline else nim_slot(), ThreadPoolExecutor(args.workers) as ex:
-        futs = {ex.submit(run_episode, m, k, s, 0, args.offline): (m, k, s) for m, k, s in jobs}
-        for i, f in enumerate(as_completed(futs), 1):
-            m, k, s = futs[f]
+    with nullcontext() if args.offline else nim_slot():
+        for i, (m, k, s) in enumerate(jobs, 1):
             try:
-                r = f.result()
+                r = run_episode(m, k, s, 0, args.offline)
                 sub = r["submission"] or {}
                 print(
                     f"[{i}/{len(jobs)} {time.time() - t0:6.0f}s] {m} {k} s{s}: "

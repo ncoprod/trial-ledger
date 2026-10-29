@@ -193,3 +193,22 @@ before acquiring it; no other repo's lock was removed.
 - Change: provenance now captures `sys.orig_argv`, preserving Python's `-m` invocation;
   earlier snapshots omitted that flag. Fixed launch commands remain in this log.
 - Source: `tests/test_cli_hooks.py`, `experiments/PROTOCOL.md`; final suite rerun pending.
+
+## Iteration 13 — resumable NIM scheduling
+
+- Hypothesis: a queued thread pool is unnecessary for a one-request slot and makes
+  termination wait for queued episodes instead of promptly releasing the mutex.
+- Change: remove the batch thread pool; run serially in the main thread. A SIGTERM
+  handler releases the owned mkdir slot in `finally`; an owner PID is recorded.
+  Resume preserves completed failure receipts as well as successful episodes.
+- Command: `uv run --no-sync pytest tests/test_nim_slot.py tests/test_paired_tests.py`.
+- Result: 3 PASS, including simulated SIGTERM, handler restoration and proof that
+  another occupied slot remains untouched. Existing cached prefixes will be reused.
+- Source: `tests/test_nim_slot.py`; model batches use disjoint cache files and seed
+  sets, with one worker and one atomic slot each (at most two machine-wide).
+
+Iteration 11 median rerun outcome: PASS, all Rust thread outputs byte-identical;
+NumPy/pypbo PBO and logit checks pass. Measured Rust/pypbo median range 95.07–1217.52x,
+versus historical best-run range 160–1463x. This is mixed performance evidence,
+not a uniformly faster end-to-end claim: measurement methods and shared load differ.
+All timing samples remain in `benchmarks/results/pbo_benchmark.json`.

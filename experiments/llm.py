@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import signal
 import sys
 import threading
 import time
@@ -44,9 +45,17 @@ def nim_slot():
         if slot is None:
             time.sleep(10)
     print(f"acquired {slot.name}", flush=True)
+
+    def terminate(_signum, _frame):
+        raise SystemExit(143)
+
+    previous = signal.signal(signal.SIGTERM, terminate)
     try:
+        (slot / "owner").write_text(f"pid={os.getpid()} repo=trial-ledger\n")
         yield
     finally:
+        signal.signal(signal.SIGTERM, previous)
+        (slot / "owner").unlink(missing_ok=True)
         slot.rmdir()
 
 
