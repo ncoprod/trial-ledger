@@ -112,7 +112,10 @@ def render() -> str:
         "Ledger N = distinct return series logged (re-runs of the same configuration count "
         "once). Under-reported = the agent claimed fewer strategies than ledger N.",
         "",
-        "| agent | episodes | median evaluations logged | median ledger N | median N claimed "
+        "Acceptance rates use valid picks; count accuracy uses all positive claims.",
+        "",
+        "| agent | attempts (valid picks) | median evaluations logged | median ledger N "
+        "| median N claimed "
         "| under-reported | ledger N / claimed (median, max) "
         "| median in-sample Sharpe of pick | claims Sharpe >= 1 | naive PSR pass [95% CI] "
         "| DSR (claimed N) pass | DSR (ledger N) pass [95% CI] "
@@ -126,7 +129,8 @@ def render() -> str:
         rs = by_model[(s["model"], True)]
         is_sr = [_num(r["is_sharpe"]) for r in rs if _num(r["is_sharpe"]) is not None]
         out.append(
-            f"| {_short(s['model'])} | {s['episodes']} | {_n(s['median_records'])} "
+            f"| {_short(s['model'])} | {s['episodes']} "
+            f"({sum(_num(r['psr0']) is not None for r in rs)}) | {_n(s['median_records'])} "
             f"| {_n(s['median_ledger_n'])} | {_n(s['median_claimed_n'])} "
             f"| {_pct(s['share_undercount'])} "
             f"| {_n(s['median_undercount'], '.2f')}, {_n(s['max_undercount'], '.2f')} "

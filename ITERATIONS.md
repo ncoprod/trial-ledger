@@ -444,3 +444,8 @@ and episode hashes verified, all three exported figures inspected.
 - Result: pending acquisition; logs in ignored `runs/nim-*-queue.log`, with exact
   launch receipts and exit files. All research settings and completed outcomes remain
   unchanged. Source: `experiments/llm.py`; final receipts will record the source hash.
+
+Iteration 22 denominator follow-up: the per-model null table now shows attempts
+with the valid-pick count in parentheses, matching the cohort table. For example,
+gpt-oss has 40 attempts and 38 scored picks in the current snapshot. Generated
+artifacts will refresh from this display-only change with the final analysis.
