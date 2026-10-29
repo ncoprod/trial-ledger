@@ -731,3 +731,18 @@ Command: `uv run --no-sync python -m runs.stage_review_raw`; operational receipt
 referenced objects are staged; the live NIM cache is snapshotted at a complete
 JSON line without overwriting it. No acceptance estimate is published before
 the fixed 265-episode plan completes. Later sessions remain resumable.
+
+Review documentation follow-up: update the shell-emission example with dataset,
+scored time-axis and frequency identity. Explain that absent return hashes never
+justify deduplication and that the labelled legacy alignment assertion cannot
+override known cohort conflicts. The direct PBO smoke command now uses the
+corrected committed control ledger. Correct fresh-run seed commands and label
+the diagram's BTC period as previously examined. Clarify that missing historical
+NIM launch metadata concerns the superseded first version, not newly recorded
+receipts. No evaluated strategy or inference setting changes.
+
+Documentation verification: the first lint pass rejected a long provenance string
+and spacing in the Python README example; both are corrected. Ruff check/format
+then PASS (53 files). The ignored transport helper initially passed an invalid
+combined diff-tree flag; split it into the documented flags and resume from the
+same base/target. No research receipt or main history changes for transport.

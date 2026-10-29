@@ -31,7 +31,7 @@ flowchart LR
     M --> L["Anchored ledger + compressed returns"]
     L --> E["PSR / claimed-N DSR / ledger-N DSR / CSCV PBO"]
     E --> R["episodes.json / paired_tests.json / figures"]
-    D --> H["Held-out BTC period"]
+    D --> H["Previously examined BTC diagnostic"]
     A --> F["Fixed final candidate"]
     F --> H
     H --> R
@@ -108,16 +108,31 @@ backtest can only be counted as an unscored attempt:
 ```python
 from trial_ledger import emit
 
-emit(sharpe=per_period_sharpe, n_obs=len(returns), strategy={"lookback": lookback})
+emit(
+    sharpe=per_period_sharpe,
+    n_obs=len(returns),
+    strategy={"lookback": lookback},
+    dataset_hash=dataset_sha256,
+    period={"time_axis_hash": scored_dates_sha256},
+    periods_per_year=365,
+)
 ```
 
-For scripts needing PBO, use `record_trial(returns, strategy=..., store_returns=True)` from `trial_ledger` to persist
-the return series as well as its score.
+Compute `dataset_sha256` from the evaluated input and `scored_dates_sha256` from
+the ordered scored dates. Reports require one common dataset, time axis, length
+and sampling frequency. Without return hashes, every scored emission counts as a
+distinct evaluation, even if strategy metadata repeats. Legacy homogeneous ledgers
+can use `report --assume-aligned`; that explicit assertion is labelled and cannot
+override known mixed cohorts.
+
+For PBO, use `record_trial(returns, strategy=..., dataset_hash=..., period=...,
+periods_per_year=365)` from `trial_ledger`. It stores returns by default. Supply the
+same identity metadata; equal series lengths alone do not establish alignment.
 
 ```bash
 trial-ledger exec -- python my_backtest.py
-trial-ledger --dir experiments/results/runs/openai__gpt-oss-20b/signflip-s0-r0/ledger verify --check-returns
-trial-ledger --dir experiments/results/runs/openai__gpt-oss-20b/signflip-s0-r0/ledger pbo
+trial-ledger --dir experiments/results/causal-v2/runs/random-search/signflip-s0-r0/ledger verify --check-returns
+trial-ledger --dir experiments/results/causal-v2/runs/random-search/signflip-s0-r0/ledger pbo
 ```
 
 The latest restoration snapshot verifies **225 ledgers** and **35,108 distinct per-ledger trial series**, with **28,613 shared compressed objects**. [Integrity receipt and command](experiments/results/returns_integrity.json). The CLI reads these objects directly; [a recorded PBO result](experiments/results/pbo_cli_example.json) is committed alongside the ledgers.
@@ -153,10 +168,10 @@ New inference runs are resumable; completed failures remain visible:
 
 ```bash
 # NVIDIA_API_KEY is read from the environment, never passed on the command line.
-uv run --no-sync python -m experiments.run agents --seeds 10-19 \
-  --markets signflip garch --btc-reps 0 --workers 1 --resume
+uv run --no-sync python -m experiments.run agents --seeds 0-19 \
+  --markets signflip garch btc --btc-reps 5 --workers 1 --resume
 uv run --no-sync python -m experiments.cli_agents --agent codex \
-  --seeds 0-29 --markets signflip garch --reps 1
+  --seeds 0-49 --markets signflip garch --reps 1
 uv run --no-sync python -m experiments.cli_agents --agent codex \
   --seeds 0-4 --markets btc --reps 1
 ```
@@ -238,8 +253,9 @@ Nothing is published to PyPI.
   which limits claims about end-to-end generalisation.
 - Live hook firing is verified, but scored shell backtests outside MCP were not
   subjects in this experiment. Hook payload parsing also has synthetic tests.
-- BTC is one asset and one held-out period, with drift and beta exposure. It is a
-  generalisation check, not evidence of trading skill. No test-based tuning occurs. Withholding tools does not exclude pretrained
+- BTC is one asset and one previously examined period, with drift and beta
+  exposure. The corrected rerun uses that period and is a diagnostic, not an untouched test. No test-based tuning
+  occurs. Withholding tools does not exclude pretrained
   knowledge of public BTC history.
 - Claude Code Haiku was skipped after its recorded OAuth refresh failure.
   Provider revisions and original launch metadata have the limits stated above.
@@ -252,8 +268,8 @@ Nothing is published to PyPI.
   assessment of LLM-driven trading strategy discovery*](https://arxiv.org/abs/2608.27734),
   is the closest evaluation work. This repository contributes an auditable capture
   layer and compares self-reported counts with logged counts on constructed nulls.
-- Bailey & López de Prado, [*The Deflated Sharpe Ratio*](https://www.davidhbailey.com/dhbpapers/deflated-sharpe.pdf)
-  and *The Sharpe Ratio Efficient Frontier*; Bailey, Borwein, López de Prado & Zhu,
+- Bailey & López de Prado, [*The Deflated Sharpe Ratio*](https://www.davidhbailey.com/dhbpapers/deflated-sharpe.pdf);
+  Bailey, Borwein, López de Prado & Zhu,
   [*The Probability of Backtest Overfitting*](https://www.davidhbailey.com/dhbpapers/backtest-prob.pdf).
 - [pypbo](https://github.com/esvhd/pypbo) provides the separately licensed benchmark
   reference. Its AGPL source is fetched at a pinned commit into an ignored directory

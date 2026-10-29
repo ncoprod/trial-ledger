@@ -67,8 +67,9 @@ def write_manifest() -> None:
         str(p.relative_to(RESULTS)): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths
     }
     receipt["legacy_provenance_note"] = (
-        "Original NIM episodes did not record CLI command or deployment revision. "
-        "Their committed response caches, strategy ledgers and seeds are the replay evidence; "
+        "Superseded first-version NIM episodes did not record their launch command "
+        "or deployment revision. "
+        "Their original caches, ledgers and seeds remain at the superseded result path; "
         "this manifest records the exact current metric-regeneration command and source."
     )
     (RESULTS / "provenance.json").write_text(json.dumps(receipt, indent=2) + "\n")
