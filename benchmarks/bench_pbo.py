@@ -131,6 +131,7 @@ def main() -> None:
         }
     )
     benchmark_sha = hash_file(__file__)
+    native_sha = hash_file(next(Path(core.__file__).parent.glob("*.so")))
     rows = []
     for i, (t, n, s) in enumerate(CASES):
         seed = 100 + i
@@ -188,6 +189,7 @@ def main() -> None:
         "machine": platform.platform(),
         "provenance": receipt,
         "benchmark_source_sha256": benchmark_sha,
+        "native_extension_sha256": native_sha,
         "rust_source_sha256": hash_file("rust/src/lib.rs"),
         "processor": platform.processor() or platform.machine(),
         "cpu_count": os.cpu_count(),
@@ -202,6 +204,8 @@ def main() -> None:
     lines = [
         f"Machine: {meta['machine']}, {meta['cpu_count']} logical CPUs, Python "
         f"{meta['python']}, NumPy {meta['numpy']}; pypbo @ {PYPBO_COMMIT[:7]}.",
+        "",
+        f"Timing: {meta['timing']}.",
         "",
         "| T | N | S | splits | pypbo | NumPy generic | NumPy block-stats | Rust 1 thread "
         "| Rust parallel | Rust ∥ vs pypbo | Rust 1t vs NumPy block-stats |",

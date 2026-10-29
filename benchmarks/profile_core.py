@@ -58,7 +58,8 @@ def main():
             }
         ),
         "rust_source_sha256": hash_file("rust/src/lib.rs"),
-        "extension_sha256": hash_file(core.__file__),
+        "package_wrapper_sha256": hash_file(core.__file__),
+        "extension_sha256": hash_file(next(Path(core.__file__).parent.glob("*.so"))),
         "rows": rows,
     }
     args.output.write_text(json.dumps(result, indent=2) + "\n")

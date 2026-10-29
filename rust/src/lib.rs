@@ -127,11 +127,8 @@ pub fn pbo_cscv(data: &[f64], t: usize, n: usize, s: usize) -> Result<Vec<Split>
                 let mut equal = 0usize;
                 for j in 0..n {
                     let x = sharpe(tot_sum[j] - tr_sum[j], tot_sq[j] - tr_sq[j], half);
-                    if x < v {
-                        less += 1;
-                    } else if x == v {
-                        equal += 1;
-                    }
+                    less += (x < v) as usize;
+                    equal += (x == v) as usize;
                 }
                 let rank = less as f64 + 0.5 * (equal as f64 - 1.0) + 1.0;
                 let w = rank / (n as f64 + 1.0);

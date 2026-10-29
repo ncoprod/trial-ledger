@@ -212,3 +212,31 @@ NumPy/pypbo PBO and logit checks pass. Measured Rust/pypbo median range 95.07–
 versus historical best-run range 160–1463x. This is mixed performance evidence,
 not a uniformly faster end-to-end claim: measurement methods and shared load differ.
 All timing samples remain in `benchmarks/results/pbo_benchmark.json`.
+
+## Iteration 14 — interleaved native-build comparison
+
+- Hypothesis: boolean rank reductions simplify the hot loop and can avoid branch
+  costs without fast-math or altered floating-point accumulation order.
+- Change: replace the OOS less/equal branch with two boolean increments (fewer lines).
+  Build original (4162d54), fused (59a2d766), and branchless variants with the same
+  compiler command; retain native-binary and Rust-source checksums per build.
+- Commands: `CARGO_BUILD_JOBS=2 uv pip install --reinstall --no-deps ./rust` per
+  variant; `RAYON_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 uv run --no-sync python -m benchmarks.compare_kernels runs/native-variants --output benchmarks/results/kernel_interleaved.json`.
+- Result: all three output arrays byte-identical across all builds on every case.
+  Randomized interleaving, 25 samples/build/case: largest original median 161.44 ms,
+  fused 136.15 ms, branchless 115.30 ms (1.40024x original). The 2190x500 case regresses
+  versus original (3.13 -> 3.62 ms), so this is not a universal speedup claim.
+  Keep the simpler branchless candidate; full comparison rerun pending.
+- Source: `benchmarks/results/kernel_interleaved.json`, raw standalone recheck and
+  branchless profiles. Eight Rust parity tests and three cargo tests PASS.
+- Provenance correction: old profile helper hashed the package's `__init__.py`, not
+  its native binary. Relabel that field honestly; interleaved builds record actual
+  native checksums. Older source/input/output hashes remain unchanged.
+
+Iteration 13 restart outcome: cached prefix resumed with exactly the same 359
+records, one additional API call, no extra independent selection. Checkpoint retained
+under `experiments/results/attempts/nim-resume/`. An initial maintenance invocation
+used system Python and failed to import the package; rerunning with `uv run` fixed
+that before resuming. No cache or ledger data were lost.
+
+Verification milestone: full suite 108 PASS in 8.99 s; Actions 40853488417 PASS.
