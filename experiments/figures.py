@@ -100,7 +100,7 @@ def fig_trial_count(rows: list[dict]) -> Path:
     palette = ["#00798c", "#d1495b", "#edae49", "#66a182", "#2e4057", "#8d96a3"]
     lo, hi = 1, 1
     for m, c in zip(models, palette, strict=False):
-        pts = [(_num(r["n_records"]), _num(r["claimed_n"])) for r in rows if r["model"] == m]
+        pts = [(_num(r["n_ledger"]), _num(r["claimed_n"])) for r in rows if r["model"] == m]
         pts = [(a, b) for a, b in pts if a and b]
         if not pts:
             continue
@@ -111,7 +111,7 @@ def fig_trial_count(rows: list[dict]) -> Path:
     ax.text(hi * 0.9, hi * 1.02, "claimed = ledger", color=MUTED, fontsize=7, ha="right")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("backtests logged in the ledger", color=INK)
+    ax.set_xlabel("ledger N (distinct return series logged)", color=INK)
     ax.set_ylabel("trials the agent says it tested", color=INK)
     ax.set_title("Self-reported vs ledger trial count", loc="left", color=INK, fontsize=11)
     ax.legend(frameon=False, fontsize=7.5)

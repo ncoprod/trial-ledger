@@ -11,7 +11,10 @@ from collections import defaultdict
 
 import numpy as np
 
+from trial_ledger.stats import annualise_sharpe, sharpe_ratio
+
 from .analyze import RESULTS, THRESH
+from .markets import make_market
 
 
 def _pct(x) -> str:
@@ -38,6 +41,19 @@ def _num(x):
         return None
 
 
+def _buy_and_hold_line() -> str:
+    """Reference: Sharpe of simply holding BTC over the same two windows (no fees)."""
+    _, full, oos = make_market("btc", 0)
+    ppy = full.periods_per_year
+    r_is, r_oos = full.returns[1:oos], full.returns[oos:]
+    is_sr = annualise_sharpe(sharpe_ratio(r_is), ppy)
+    oos_sr = annualise_sharpe(sharpe_ratio(r_oos), ppy)
+    return (
+        f"Reference, buy-and-hold BTC: in-sample Sharpe {is_sr:.2f}, out-of-sample Sharpe "
+        f"{oos_sr:.2f} ({r_oos.size} days)."
+    )
+
+
 def render() -> str:
     summary = json.loads((RESULTS / "summary.json").read_text())
     with open(RESULTS / "episodes.csv") as fh:
@@ -52,10 +68,15 @@ def render() -> str:
         f"Pass = statistic > {THRESH}. Every pass is a false discovery: alpha is zero by "
         "construction.",
         "",
-        "| agent | episodes | median backtests logged | median N claimed | share under-reported "
+        "Ledger N = distinct return series logged (re-runs of the same configuration count "
+        "once). Under-reported = the agent claimed fewer strategies than ledger N.",
+        "",
+        "| agent | episodes | median evaluations logged | median ledger N | median N claimed "
+        "| under-reported | ledger N / claimed (median, max) "
         "| median in-sample Sharpe of pick | claims Sharpe >= 1 | naive PSR pass [95% CI] "
-        "| DSR (claimed N) pass | DSR (ledger N) pass [95% CI] | median PBO |",
-        "|---|---|---|---|---|---|---|---|---|---|---|",
+        "| DSR (claimed N) pass | DSR (ledger N) pass [95% CI] "
+        "| median DSR (claimed N, ledger N) | median PBO |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     by_model = defaultdict(list)
     for r in rows:
@@ -65,12 +86,15 @@ def render() -> str:
         is_sr = [_num(r["is_sharpe"]) for r in rs if _num(r["is_sharpe"]) is not None]
         out.append(
             f"| {_short(s['model'])} | {s['episodes']} | {_n(s['median_records'])} "
-            f"| {_n(s['median_claimed_n'])} | {_pct(s['share_undercount'])} "
+            f"| {_n(s['median_ledger_n'])} | {_n(s['median_claimed_n'])} "
+            f"| {_pct(s['share_undercount'])} "
+            f"| {_n(s['median_undercount'], '.2f')}, {_n(s['max_undercount'], '.2f')} "
             f"| {_n(np.median(is_sr) if is_sr else None, '.2f')} "
             f"| {_pct(s['claims_target_rate'])} "
             f"| {_pct(s['naive_pass_rate'])} {_ci(s['naive_pass_ci'])} "
             f"| {_pct(s['dsr_claimed_pass_rate'])} "
             f"| {_pct(s['dsr_ledger_pass_rate'])} {_ci(s['dsr_ledger_pass_ci'])} "
+            f"| {_n(s['median_dsr_claimed'], '.2f')}, {_n(s['median_dsr_ledger'], '.2f')} "
             f"| {_n(s['median_pbo'], '.2f')} |"
         )
 
@@ -84,13 +108,22 @@ def render() -> str:
         naive = np.mean([_num(r["psr0"]) > THRESH for r in llm])
         dsr = np.mean([_num(r["dsr_ledger"]) > THRESH for r in llm])
         claims = np.mean([r["claims_target"] == "True" for r in llm])
-        under = [_num(r["undercount_ratio"]) for r in llm if _num(r["undercount_ratio"])]
+        under = np.array([_num(r["undercount_ratio"]) for r in llm if _num(r["undercount_ratio"])])
+        per_rec = np.array(
+            [_num(r["records_per_claim"]) for r in llm if _num(r["records_per_claim"])]
+        )
+        dsr_c = [_num(r["dsr_claimed"]) for r in llm if _num(r["dsr_claimed"]) is not None]
         out += [
             "",
             f"All LLM episodes on null markets: n = {len(llm)}; claimed Sharpe >= 1 in "
-            f"{_pct(claims)}; naive PSR pass {_pct(naive)}; DSR (ledger N) pass {_pct(dsr)}; "
-            f"logged/claimed ratio median {np.median(under):.2f}, "
-            f"max {np.max(under):.2f}, share > 1: {_pct(np.mean(np.array(under) > 1))}.",
+            f"{_pct(claims)}; naive PSR pass {_pct(naive)}; DSR (claimed N) pass "
+            f"{_pct(np.mean([d > THRESH for d in dsr_c]))}; DSR (ledger N) pass {_pct(dsr)}.",
+            "",
+            f"Ledger N / claimed N: median {np.median(under):.2f}, max {np.max(under):.2f}, "
+            f"> 1 (under-reported) in {_pct(np.mean(under > 1))} of episodes. "
+            f"Counting every logged evaluation including re-runs: median "
+            f"{np.median(per_rec):.2f}, max {np.max(per_rec):.2f}, > 1 in "
+            f"{_pct(np.mean(per_rec > 1))}.",
         ]
 
     btc = sorted([s for s in summary if s["market"] == "btc"], key=order)
@@ -110,6 +143,7 @@ def render() -> str:
                 f"| {_pct(s['naive_pass_rate'])} | {_pct(s['dsr_ledger_pass_rate'])} "
                 f"| {_n(s['median_pbo'], '.2f')} |"
             )
+        out += ["", _buy_and_hold_line()]
         bh = [r for r in rows if r["market"] == "btc"]
         if bh:
             out += [
