@@ -82,3 +82,35 @@ def test_invalid_submission_preserves_counts_without_substitute_pick(tmp_path):
     row = analyze_episode(tmp_path)
     assert row["n_ledger"] == 1 and row["claimed_n"] == 7
     assert not row["submitted_valid"] and "psr0" not in row
+
+
+def test_shared_return_migration_preserves_anchor_and_bytes(tmp_path, monkeypatch):
+    import json
+
+    from experiments import store_returns
+    from trial_ledger.backtest import run_backtest
+    from trial_ledger.ledger import Ledger
+
+    monkeypatch.setattr(store_returns, "RESULTS", tmp_path)
+    run = tmp_path / "runs/test/signflip-s0-r0"
+    ledger = Ledger(run / "ledger")
+    market, _, _ = make_market("signflip", 0)
+    result = run_backtest({"family": "momentum"}, market)
+    record = ledger.append(strategy=result.spec, returns=result.returns)
+    head, original = ledger.head(), ledger.path.read_bytes()
+    (run / "episode.json").write_text(
+        json.dumps(
+            {
+                "market": "signflip",
+                "seed": 0,
+                "ledger_head": " ".join(map(str, head)),
+            }
+        )
+    )
+    store_returns.main()
+    migrated = Ledger(run / "ledger")
+    assert migrated.verify(expect_head=" ".join(map(str, head)), check_returns=True).ok
+    assert migrated.path.read_bytes() == original
+    assert hash_array(migrated.load_returns(record["returns_hash"])) == record["returns_hash"]
+    assert not list((run / "ledger/returns").glob("*.npz"))
+    assert len(list((tmp_path / "returns").glob("*.npz"))) == 1

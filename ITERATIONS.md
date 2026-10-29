@@ -240,3 +240,16 @@ used system Python and failed to import the package; rerunning with `uv run` fix
 that before resuming. No cache or ledger data were lost.
 
 Verification milestone: full suite 108 PASS in 8.99 s; Actions 40853488417 PASS.
+
+## Iteration 15 — remove verified duplicate return objects
+
+- Hypothesis: CLI-local return objects remain duplicated after migration to the
+  shared content-addressed store, adding repository bytes without audit value.
+- Change: copy verified local objects to the shared store when available; regenerate
+  only historical missing series. Remove a local duplicate only after its shared
+  object verifies and the anchored ledger verifies with all required series.
+- Command: `uv run --no-sync pytest tests/test_experiment.py`;
+  `uv run --no-sync python -m experiments.store_returns` after committing the source.
+- Result: 7 focused tests PASS; new regression preserves exact ledger bytes, head
+  anchor and decompressed return hash while removing the duplicate local object.
+  Full migration pending; source: `experiments/results/returns_integrity.json`.

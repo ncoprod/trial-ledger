@@ -15,10 +15,11 @@ from .markets import make_market
 def main() -> None:
     from .provenance import provenance
 
-    counts = {"ledgers": 0, "trials": 0, "objects_restored": 0}
+    counts = {"ledgers": 0, "trials": 0, "objects_restored": 0, "local_duplicates_removed": 0}
     for path in sorted((RESULTS / "runs").glob("*/*/episode.json")):
         ep = json.loads(path.read_text())
         ledger = Ledger(path.parent / "ledger", returns_directory=RESULTS / "returns")
+        local = Ledger(path.parent / "ledger", returns_directory=path.parent / "ledger/returns")
         if not ledger.verify(expect_head=ep["ledger_head"]).ok:
             raise ValueError(f"ledger verification failed: {path}")
         market, _, _ = make_market(ep["market"], ep["seed"])
@@ -29,14 +30,21 @@ def main() -> None:
                 continue
             seen.add(h)
             if ledger.load_returns(h) is None:
-                result = run_backtest(rec["strategy"], market)
-                if hash_array(result.returns) != h:
+                returns = local.load_returns(h)
+                if returns is None:
+                    returns = run_backtest(rec["strategy"], market).returns
+                if hash_array(returns) != h:
                     raise ValueError(f"returns differ: {path}, trial {rec['seq']}")
-                assert ledger.store_returns(result.returns) == h
+                assert ledger.store_returns(returns) == h
                 counts["objects_restored"] += 1
             counts["trials"] += 1
         ledger._ensure()
         assert ledger.verify(expect_head=ep["ledger_head"], check_returns=True).ok
+        for duplicate in local.returns_dir.glob("*"):
+            if duplicate.suffix in {".npy", ".npz"} and duplicate.stem in seen:
+                assert ledger.load_returns(duplicate.stem) is not None
+                duplicate.unlink()
+                counts["local_duplicates_removed"] += 1
         counts["ledgers"] += 1
         print(path.parent.name, counts, flush=True)
     counts["unique_compressed_objects"] = len(list((RESULTS / "returns").glob("*.npz")))
