@@ -12,7 +12,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .analyze import RESULTS, THRESH
+from .analyze import RESULTS, THRESH, wilson
 
 FIG = RESULTS / "figures"
 INK, MUTED, GRID = "#1f2328", "#59636e", "#d1d9e0"
@@ -60,16 +60,29 @@ def fig_false_discovery(rows: list[dict]) -> Path:
         ]
     ):
         rates = []
+        intervals = []
         for m in models:
             vals = [_num(r[key]) for r in by[m]]
             vals = [v for v in vals if v is not None]
             rates.append(np.mean([v > THRESH for v in vals]) if vals else np.nan)
+            intervals.append(wilson(sum(v > THRESH for v in vals), len(vals)))
         bars = ax.bar(x + (i - 1) * w, rates, w, color=color, label=label)
-        for b, rt in zip(bars, rates, strict=True):
+        ax.errorbar(
+            x + (i - 1) * w,
+            rates,
+            yerr=np.array(
+                [[r - lo, hi - r] for r, (lo, hi) in zip(rates, intervals, strict=True)]
+            ).T,
+            fmt="none",
+            ecolor=INK,
+            capsize=2,
+            linewidth=0.7,
+        )
+        for b, rt, (_, upper) in zip(bars, rates, intervals, strict=True):
             if np.isfinite(rt):
                 ax.text(
                     b.get_x() + b.get_width() / 2,
-                    rt + 0.015,
+                    upper + 0.015,
                     f"{rt:.0%}",
                     ha="center",
                     va="bottom",

@@ -55,3 +55,30 @@ def test_btc_split_dates():
 def test_blind_hides_trial_ids():
     res = {"trial": 7, "sharpe_annualized": 1.0, "top": [{"trial": 3, "x": 1}]}
     assert blind(res) == {"sharpe_annualized": 1.0, "top": [{"x": 1}]}
+
+
+def test_invalid_submission_preserves_counts_without_substitute_pick(tmp_path):
+    import json
+
+    from experiments.analyze import analyze_episode
+    from trial_ledger.backtest import run_backtest
+    from trial_ledger.ledger import Ledger
+
+    market, _, _ = make_market("signflip", 0)
+    result = run_backtest({"family": "momentum"}, market)
+    ledger = Ledger(tmp_path / "ledger")
+    ledger.append(strategy=result.spec, returns=result.returns)
+    ep = {
+        "model": "test",
+        "market": "signflip",
+        "seed": 0,
+        "rep": 0,
+        "status": "invalid_submission",
+        "tool_calls": 1,
+        "ledger_head": " ".join(map(str, ledger.head())),
+        "submission": {"strategy": {"family": "invalid"}, "n_strategies_tested": 7},
+    }
+    (tmp_path / "episode.json").write_text(json.dumps(ep))
+    row = analyze_episode(tmp_path)
+    assert row["n_ledger"] == 1 and row["claimed_n"] == 7
+    assert not row["submitted_valid"] and "psr0" not in row

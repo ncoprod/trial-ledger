@@ -180,7 +180,11 @@ def cmd_replay_check(args) -> int:
             bad += not same
             if not same:
                 print(f"MISMATCH {e['model']} {rid}", flush=True)
-    print(f"replayed {len(eps)} episodes from the cache: {len(eps) - bad} identical, {bad} differ")
+    cli = sum("-cli/" in e["model"] for e in eps)
+    print(
+        f"checked {len(eps)} episodes: {len(eps) - cli} cache/baseline replays, "
+        f"{cli} CLI ledger audits; {bad} mismatches"
+    )
     return 1 if bad else 0
 
 

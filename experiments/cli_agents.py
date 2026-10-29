@@ -8,6 +8,7 @@ The CLI's existing sign-in is reused. Raw output is retained only under ignored 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shlex
@@ -26,6 +27,7 @@ from .provenance import provenance
 from .run import _seeds
 
 REPO = Path(__file__).resolve().parent.parent
+HARNESS_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 MODELS = {"codex": "gpt-6.1-sol", "claude": "haiku"}
 PROMPT = (
     "You are a quantitative researcher. Use the trial-ledger MCP tools to research the "
@@ -241,8 +243,12 @@ def run(agent: str, kind: str, seed: int, rep: int = 0, timeout: int = 1800) -> 
         try:
             normalise_spec(sub["strategy"] if sub else {})
         except ValueError:
-            sub = None
-        status = "ok" if sub and code == 0 else ("timeout" if timed_out else "cli_error")
+            valid = False
+        else:
+            valid = True
+        status = ("ok" if valid else "invalid_submission") if code == 0 else "cli_error"
+        if timed_out:
+            status = "timeout"
         if any(
             s in raw
             for s in (
@@ -275,6 +281,7 @@ def run(agent: str, kind: str, seed: int, rep: int = 0, timeout: int = 1800) -> 
             "reasoning_effort": "medium" if agent == "codex" else None,
             "protocol": "mcp-restricted-v1",
             "provenance": receipt,
+            "loaded_harness_sha256": HARNESS_SHA256,
             "prompt": PROMPT,
             "hook_events": sum(1 for _ in (logdir / "hooks.jsonl").open())
             if (logdir / "hooks.jsonl").exists()

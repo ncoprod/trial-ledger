@@ -38,6 +38,15 @@ def test_report_dedups_identical_reruns(tmp_path):
     assert rep.n_records == 4 and rep.n_trials == 2
 
 
+def test_report_refuses_pbo_from_partial_trial_universe(noisy_ledger):
+    record = noisy_ledger.records()[0]
+    (noisy_ledger.returns_dir / f"{record['returns_hash']}.npz").unlink()
+    report = build_report(noisy_ledger)
+    assert report.pbo is None
+    assert report.pbo_n_trials is None
+    assert "missing returns for 1 trials" in report.pbo_note
+
+
 def test_report_counts_unscored_runs(tmp_path):
     lg = Ledger(tmp_path / "tl")
     rng = np.random.default_rng(2)

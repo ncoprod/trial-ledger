@@ -229,6 +229,52 @@ def render() -> str:
         f"the agent's own ledger: {sum(r['submitted_in_ledger'] == 'True' for r in rows)}",
     ]
     out += integrity
+    paired_path = RESULTS / "paired_tests.json"
+    if paired_path.exists():
+        paired = json.loads(paired_path.read_text())
+        out += [
+            "",
+            "## CLI subjects and paired N tests",
+            "",
+            "Full-precision results and protocol: [paired_tests.json](paired_tests.json); "
+            "[provenance.json](provenance.json). Threshold stays fixed at 0.95.",
+            "",
+            "| cohort | valid null picks | naive passes | ledger-N DSR passes | under-reported |",
+            "|---|---|---|---|---|",
+        ]
+        for name, cohort in paired["headlines"].items():
+            out.append(
+                f"| {name} | {cohort['episodes']} | {cohort['psr0']['passes']} "
+                f"| {cohort['dsr_ledger']['passes']} | {cohort['underreported']} |"
+            )
+        out += [
+            "",
+            "| model | paired episodes | claimed-only pass | ledger-only pass | "
+            "exact McNemar p | median DSR(claimed)-DSR(ledger) | Wilcoxon Holm p |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        for model, test in paired["per_model_paired_tests"].items():
+            out.append(
+                f"| {model} | {test['episodes']} | {test['claimed_only_pass']} "
+                f"| {test['ledger_only_pass']} | {test['mcnemar_exact_two_sided_p']:.4g} "
+                f"| {test['median_claimed_minus_ledger']:.4g} "
+                f"| {test['wilcoxon_holm_p']:.4g} |"
+            )
+        failed = [r for r in rows if r["status"] != "ok"]
+        out += [
+            "",
+            f"Incomplete/invalid episode receipts retained: {len(failed)}. "
+            "They are not replaced with the best logged strategy. Authentication and "
+            "startup pilots are retained separately in `attempts/`.",
+            "",
+            "Wilson intervals describe episode proportions; models share market seeds. "
+            "Market/seed cluster-bootstrap intervals are also recorded. Pooled iid "
+            "significance is not claimed. Zero discordance does not establish equivalence.",
+            "",
+            "Exploratory threshold intervals and hypothetical undercount scenarios are "
+            "reported separately in paired_tests.json. They do not replace the fixed "
+            "0.95 test or constitute observed agent claims.",
+        ]
     return "\n".join(out) + "\n"
 
 

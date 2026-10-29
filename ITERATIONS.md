@@ -140,3 +140,23 @@ candidate and rerun the full pypbo/NumPy/Rust comparison before updating headlin
 - Licensing: verify Hugging Face cards and upstream licences. Binance dataset terms
   explicitly impose CC BY-NC-SA 4.0; retain attributed data as authorized and flag
   non-commercial data separately from MIT code.
+
+## Iteration 10 — invalid submissions and dependence-aware reporting
+
+- Hypothesis: substituting the best logged strategy for an invalid final answer would
+  overstate successful agent completion and could alter acceptance rates.
+- Change: retain raw invalid submissions, score only valid submitted strategies;
+  add a regression test. Add Wilson bars and market/seed cluster-bootstrap intervals
+  (5,000 replicates, seed 20261029) alongside descriptive pooled Wilson intervals.
+- Command: `uv run --no-sync pytest tests/test_cli_hooks.py tests/test_experiment.py tests/test_paired_tests.py`;
+  `CARGO_BUILD_JOBS=2 cargo test --manifest-path rust/Cargo.toml --release`.
+- Result: 41 Python tests and 3 cargo tests PASS. A missing stored trial now has a
+  regression proving PBO refuses a partial trial universe.
+- Source: `tests/test_experiment.py`, `tests/test_cli_hooks.py`, `paired_tests.json`
+  after final regeneration. No changes to the prespecified 0.95 threshold or seed set.
+
+CI milestone: Actions 40851148640 at 1da41f2 PASS, including both wheel builds and
+committed-return PBO smoke test. Full benchmark is running under `runs/` with a
+1.5 GB pypbo matrix cap; this non-ML job is below the shared >4 GB lock threshold.
+The earlier wrapper waited unnecessarily for the heavy-ML lock and was stopped
+before acquiring it; no other repo's lock was removed.

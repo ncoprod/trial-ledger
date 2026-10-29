@@ -75,7 +75,7 @@ def analyze_episode(ep_dir: Path) -> dict[str, Any]:
         claimed_n = None
     reported = _f(sub.get("annualized_sharpe"))
 
-    # the strategy the agent selected: its submission if valid, else its best ledger trial
+    # Evaluate only a valid submission; substituting a best trial would hide failures.
     selected, submitted_valid = None, False
     if isinstance(sub.get("strategy"), dict):
         try:
@@ -84,8 +84,6 @@ def analyze_episode(ep_dir: Path) -> dict[str, Any]:
         except ValueError:
             selected = None
     best_trial = max(trials.values(), key=lambda t: t["sharpe"]) if trials else None
-    if selected is None and best_trial is not None:
-        selected = best_trial["strategy"]
     strategy_hashes = {t["strategy_hash"] for t in trials.values()}
 
     row: dict[str, Any] = {

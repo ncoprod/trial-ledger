@@ -78,6 +78,19 @@ def main(rows: list[dict] | None = None) -> None:
                 "wilson_95_ci": ci,
                 "half_width": (ci[1] - ci[0]) / 2 if ci else None,
             }
+            clusters = defaultdict(list)
+            for r in scored:
+                clusters[(r["market"], r["seed"])].append(r[key] > THRESH)
+            if clusters:
+                counts = np.array([sum(v) for v in clusters.values()])
+                sizes = np.array([len(v) for v in clusters.values()])
+                draws = np.random.default_rng(20261029).integers(
+                    len(clusters), size=(5000, len(clusters))
+                )
+                samples = counts[draws].sum(axis=1) / sizes[draws].sum(axis=1)
+                result[key]["market_seed_cluster_bootstrap_95_ci"] = np.quantile(
+                    samples, [0.025, 0.975]
+                ).tolist()
         claims = [r for r in valid if r.get("claimed_n")]
         under = [r for r in claims if r["claimed_n"] < r["n_ledger"]]
         result["underreported"] = len(under)
@@ -145,6 +158,8 @@ def main(rows: list[dict] | None = None) -> None:
             {
                 "threshold": THRESH,
                 "wilson_z": 1.96,
+                "bootstrap_seed": 20261029,
+                "bootstrap_replicates": 5000,
                 "sensitivity_thresholds": [0.5, 0.8, 0.9, 0.95, 0.975, 0.99],
             }
         ),
