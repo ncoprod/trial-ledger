@@ -156,13 +156,14 @@ def render() -> str:
         dsr_c = [_num(r["dsr_claimed"]) for r in llm if _num(r["dsr_claimed"]) is not None]
         out += [
             "",
-            f"All LLM episodes on null markets: n = {len(llm)}; claimed Sharpe >= 1 in "
+            f"Valid LLM null-market picks: n = {len(llm)}; claimed Sharpe >= 1 in "
             f"{_pct(claims)}; naive PSR pass {k_naive}/{len(llm)} = "
             f"{_pct(k_naive / len(llm))} {_ci(wilson(k_naive, len(llm)))}; DSR (claimed N) pass "
             f"{_pct(np.mean([d > THRESH for d in dsr_c]))}; DSR (ledger N) pass "
             f"{k_dsr}/{len(llm)} = {_pct(k_dsr / len(llm))} {_ci(wilson(k_dsr, len(llm)))}.",
             "",
-            f"Ledger N / claimed N: median {np.median(under):.2f}, max {np.max(under):.2f}, "
+            f"Among these valid picks, ledger N / claimed N: median {np.median(under):.2f}, "
+            f"max {np.max(under):.2f}, "
             f"> 1 (under-reported) in {_pct(np.mean(under > 1))} of episodes. "
             f"Counting every logged evaluation including re-runs: median "
             f"{np.median(per_rec):.2f}, max {np.max(per_rec):.2f}, > 1 in "
@@ -239,15 +240,19 @@ def render() -> str:
             "Full-precision results and protocol: [paired_tests.json](paired_tests.json); "
             "[provenance.json](provenance.json). Threshold stays fixed at 0.95.",
             "",
-            "| cohort | valid null picks | naive passes | ledger-N DSR passes | under-reported |",
+            "| cohort | valid null picks | naive passes | ledger-N DSR passes | "
+            "under-reported / usable claims |",
             "|---|---|---|---|---|",
         ]
         for name, cohort in paired["headlines"].items():
             out.append(
                 f"| {name} | {cohort['episodes']} | {cohort['psr0']['passes']} "
-                f"| {cohort['dsr_ledger']['passes']} | {cohort['underreported']} |"
+                f"| {cohort['dsr_ledger']['passes']} | {cohort['underreported']}/"
+                f"{cohort['claims_available']} |"
             )
         out += [
+            "",
+            "Acceptance uses valid picks; count accuracy uses all available positive claims.",
             "",
             "| model | paired episodes | claimed-only pass | ledger-only pass | "
             "exact McNemar p | median DSR(claimed)-DSR(ledger) | Wilcoxon Holm p |",

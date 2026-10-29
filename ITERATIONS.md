@@ -409,3 +409,7 @@ The refreshed manifest references committed/staged episode receipts, verified
 against index blob hashes; the newly completed signflip/seed-18 receipt and its
 returns are included. Full local suite: 111 passed in 19.32 s
 (`runs/pytest-post-reboot.log`, ignored).
+
+Iteration 22 reporting clarification: label the older pooled paragraph as valid
+picks, and show the usable-claim denominator beside cohort under-report counts.
+This makes the two populations explicit without changing any score or test.
