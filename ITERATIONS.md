@@ -596,7 +596,7 @@ version is not a candidate eligible for headline selection.
 | M3 collapsed emissions | Deduplicate only proven equal return hashes within a coherent cohort; otherwise each scored evaluation counts | Actual emit/exec regression with changed script content, scores and repeated metadata | 5dcf789a |
 | M4 mixed cohorts | Require dataset/time-axis/frequency/length identity; no majority-length selection; explicit legacy alignment assertion remains labelled | Mixed dataset, date axis, frequency and length rejection tests | 5dcf789a |
 | M5 failed verification | Abort analysis/public report on chain/replay failure; stop reproduce before any writes | Corrupted score, return hash, anchored tail, and no-publication regressions | 5dcf789a |
-| M6 native licences | Collect locked dependency notices, package wheel/sdist bundles, inspect both CI artifacts | Local wheel/sdist exact-byte checks PASS; both-platform CI pending | 4c36f6e5 |
+| M6 native licences | Collect locked dependency notices, package wheel/sdist bundles, inspect both CI artifacts | All 59 full notices verified in both platform wheels and Linux source archive; CI 40946558292 PASS | 4c36f6e5, 187ee8ee, 1ddf6ff7 |
 | m7 window boundaries | Initial equity included in drawdown; slice actual full-history turnover | First OOS loss and unchanged holdings regression | 5dcf789a |
 | m8 unused cache | Delete unused returns_by_seq and its numpy import | Existing MCP/service tests | 5dcf789a |
 
@@ -707,3 +707,27 @@ commits with zero objects retransmitted. The temporary branch was deleted;
 187ee8ee and 21c36bb6 then pushed normally. Main history was neither rewritten nor
 backdated. The single large streamed attempt also failed and is retained in the
 ignored log. Request size remains an environment limitation, not a result change.
+
+Review gate verified at 1ddf6ff7: Actions 40946558292, all seven jobs PASS.
+Both native builds run 135 pytest tests; both cargo suites run three tests.
+Both wheels and the Linux source archive contain all 59 full notice files.
+Committed receipt: `experiments/results/causal-v2/review_verification.json`, with
+the exact Actions metadata/log commands, source SHA and parsed assertions.
+The independent review file remains locally excluded and untracked.
+
+Tectonic bibliography smoke: `tectonic -X compile
+runs/paper-bib-smoke/smoke.tex` exits 0. Text extraction confirms all eight
+references and author accents resolve. Tectonic reports an internal rerun
+consistency warning, stopping after six passes; no unresolved citation remains.
+The full empirical paper is not yet built. Raw diagnostics are in ignored
+`runs/paper-bib-smoke.log`; no placeholder counts enter the paper.
+
+Corrected raw-evidence checkpoint: 45 successful Codex
+CLI sessions, 4 gpt-oss sessions and all 25 fixed random controls
+verified against their receipt anchors with return replay. The selected snapshot
+contains 5993 distinct per-ledger series backed by 5935 shared objects.
+Command: `uv run --no-sync python -m runs.stage_review_raw`; operational receipt
+`runs/staged-review-raw.json` is ignored. Only complete episodes and their exact
+referenced objects are staged; the live NIM cache is snapshotted at a complete
+JSON line without overwriting it. No acceptance estimate is published before
+the fixed 265-episode plan completes. Later sessions remain resumable.
