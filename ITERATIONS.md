@@ -595,7 +595,7 @@ version is not a candidate eligible for headline selection.
 | M2 purge boundaries | Purge both label-interval boundaries, then embargo after their union | All-pairs interval intersections, zero/short embargo | 5dcf789a |
 | M3 collapsed emissions | Deduplicate only proven equal return hashes within a coherent cohort; otherwise each scored evaluation counts | Actual emit/exec regression with changed script content, scores and repeated metadata | 5dcf789a |
 | M4 mixed cohorts | Require dataset/time-axis/frequency/length identity; no majority-length selection; explicit legacy alignment assertion remains labelled | Mixed dataset, date axis, frequency and length rejection tests | 5dcf789a |
-| M5 failed verification | Abort analysis/public report on chain/replay failure; stop reproduce before any writes | Corrupted score, return hash, anchored tail, and no-publication regressions | 5dcf789a |
+| M5 failed verification | Abort analysis/public report on chain/replay failure; stop reproduce before any writes | Corrupted score, return hash, anchored tail, and no-publication regressions | 5dcf789a, 21c36bb6, 6509fbc6 |
 | M6 native licences | Collect locked dependency notices, package wheel/sdist bundles, inspect both CI artifacts | All 59 full notices verified in both platform wheels and Linux source archive; CI 40946558292 PASS | 4c36f6e5, 187ee8ee, 1ddf6ff7 |
 | m7 window boundaries | Initial equity included in drawdown; slice actual full-history turnover | First OOS loss and unchanged holdings regression | 5dcf789a |
 | m8 unused cache | Delete unused returns_by_seq and its numpy import | Existing MCP/service tests | 5dcf789a |
@@ -807,3 +807,19 @@ check its unfinished prefix before any handoff. The zero-prefix assertion FAILed
 SIGCONT immediately, kept the same process/episode and slot, and made no handoff,
 restart or trial deletion. No interruption receipt was written because the guard
 stopped before that mutation. The fixed sample and settings remain unchanged.
+
+Complete Codex milestone: all 105 fixed sessions finish with status ok, 100 null
+sessions and five BTC sessions. Wrapper `runs/v2-codex.exit` is 0. No replacements
+or extra seeds. The complete-episode return-store audit verifies 139 receipts
+(105 Codex, nine gpt-oss including one provider failure, 25 controls), 9,355
+distinct per-ledger trial series backed by 9,246 referenced shared objects.
+Commands: `python -m experiments.store_returns`, then
+`uv run --no-sync python -m runs.stage_review_raw`; ignored logs
+`runs/review-codex-store.log`, `runs/stage-review-codex-complete.log`. The partial
+store-count receipt is not published as the final fixed-sample result.
+
+Actions 40953733922 at 6509fbc6 passes all seven jobs: 137 Python tests in each
+native build, three Rust tests each, both wheels and the source archive containing
+59 full upstream notices. Refresh `causal-v2/review_verification.json` from the
+exact saved Actions metadata/log commands. Real failed-prefix coverage enters CI
+with this next raw checkpoint; no acceptance aggregation occurs yet.
