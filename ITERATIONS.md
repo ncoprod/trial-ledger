@@ -269,3 +269,18 @@ Verification milestone: full suite 108 PASS in 8.99 s; Actions 40853488417 PASS.
   a headline. Source: `benchmarks/results/pbo_benchmark.json`; isolated artifacts
   will be stored under `benchmarks/results/linux/` with the Actions run reference.
 - Reproduce native variants: `uv run --no-sync python -m benchmarks.build_variants runs/native-variants`.
+
+## Iteration 17 — retain invalid NIM submissions in the enlarged analysis
+
+- Hypothesis: a completed API exchange can still contain an invalid final strategy.
+- Change: derive `invalid_submission` status during analysis, preserve its ledger
+  and claimed count, and exclude unscored picks from score sensitivity calculations.
+  Do not replace the final answer with a successful strategy from the search.
+- Command: `uv run --no-sync python -m experiments.run analyze`.
+- Result: first enlarged analysis failed with `KeyError: selected_moments` for
+  gpt-oss-20b/signflip/seed 11. The receipt remains unchanged. Both invalid-status
+  paths and paired analysis now pass regression tests (10 focused tests). Re-run
+  the full analysis from the committed fix.
+- Result files: `experiments/results/episodes.json`, `paired_tests.json`; failed
+  command log: ignored `runs/cli-cohort-analysis.log`. This is an analysis repair,
+  with no new strategy selection or held-out test evaluation.

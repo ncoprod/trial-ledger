@@ -58,7 +58,7 @@ def main(rows: list[dict] | None = None) -> None:
     for i, model in enumerate(ordered):
         running = max(running, min(1.0, (len(ordered) - i) * tests[model]["wilcoxon_two_sided_p"]))
         tests[model]["wilcoxon_holm_p"] = running
-    llm = [r for r in null if r["model"] != "random-search"]
+    llm = [r for r in null if r["model"] != "random-search" and r.get("selected_moments")]
     cohorts = {
         "nim": [r for r in llm if "-cli/" not in r["model"]],
         "cli": [r for r in llm if "-cli/" in r["model"]],

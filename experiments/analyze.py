@@ -91,7 +91,9 @@ def analyze_episode(ep_dir: Path) -> dict[str, Any]:
         "market": ep["market"],
         "seed": ep["seed"],
         "rep": ep["rep"],
-        "status": ep["status"],
+        "status": "invalid_submission"
+        if ep["status"] == "ok" and not submitted_valid
+        else ep["status"],
         "tool_calls": ep["tool_calls"],
         "ledger_ok": ver.ok,
         "replay_mismatches": mismatches,

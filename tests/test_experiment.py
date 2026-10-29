@@ -57,7 +57,8 @@ def test_blind_hides_trial_ids():
     assert blind(res) == {"sharpe_annualized": 1.0, "top": [{"x": 1}]}
 
 
-def test_invalid_submission_preserves_counts_without_substitute_pick(tmp_path):
+@pytest.mark.parametrize("status", ["ok", "invalid_submission"])
+def test_invalid_submission_preserves_counts_without_substitute_pick(tmp_path, monkeypatch, status):
     import json
 
     from experiments.analyze import analyze_episode
@@ -73,7 +74,7 @@ def test_invalid_submission_preserves_counts_without_substitute_pick(tmp_path):
         "market": "signflip",
         "seed": 0,
         "rep": 0,
-        "status": "invalid_submission",
+        "status": status,
         "tool_calls": 1,
         "ledger_head": " ".join(map(str, ledger.head())),
         "submission": {"strategy": {"family": "invalid"}, "n_strategies_tested": 7},
@@ -82,6 +83,13 @@ def test_invalid_submission_preserves_counts_without_substitute_pick(tmp_path):
     row = analyze_episode(tmp_path)
     assert row["n_ledger"] == 1 and row["claimed_n"] == 7
     assert not row["submitted_valid"] and "psr0" not in row
+    assert row["status"] == "invalid_submission"
+    from experiments import paired_tests
+
+    monkeypatch.setattr(paired_tests, "RESULTS", tmp_path)
+    paired_tests.main([row])
+    result = json.loads((tmp_path / "paired_tests.json").read_text())["headlines"]["nim"]
+    assert result["attempts"] == 1 and result["episodes"] == 0
 
 
 def test_shared_return_migration_preserves_anchor_and_bytes(tmp_path, monkeypatch):
