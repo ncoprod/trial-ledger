@@ -160,3 +160,21 @@ committed-return PBO smoke test. Full benchmark is running under `runs/` with a
 1.5 GB pypbo matrix cap; this non-ML job is below the shared >4 GB lock threshold.
 The earlier wrapper waited unnecessarily for the heavy-ML lock and was stopped
 before acquiring it; no other repo's lock was removed.
+
+## Iteration 11 — robust benchmark measurement and fixed CLI sample plan
+
+- Hypothesis: a single best timing on a shared machine is too sensitive to contention
+  to establish a new speedup range. The first full rerun passes every equality check,
+  but its pypbo timings varied strongly relative to the historical run.
+- Change: report medians and retain every timing sample: 3 pypbo/generic, 7 NumPy
+  block-statistics, 25 Rust samples. No numerical-kernel change from iteration 7.
+- Commands: `RAYON_NUM_THREADS=8 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 uv run --no-sync python -m benchmarks.bench_pbo`;
+  `uv run --no-sync python -m experiments.freeze_markets --count 30`.
+- Result: first full rerun PASS, retained in
+  `benchmarks/results/pbo_benchmark_concurrent.json`; median rerun pending in
+  `benchmarks/results/pbo_benchmark.json`. The pypbo case requiring approximately
+  224 GB remains explicitly skipped, never extrapolated as a measured speedup.
+- Fixed CLI sample extension: seeds 0-29 on both null markets (60 episodes), then
+  five BTC runs (seeds 0-4). This plan is fixed before final cohort analysis and
+  retains invalid submissions. GARCH inputs 0-19 stay byte-identical; 20-29 are
+  archived before use. No strategy/prompt tuning or held-out BTC feedback.

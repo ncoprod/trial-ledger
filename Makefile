@@ -13,7 +13,7 @@ lint:
 
 bench:              ## pypbo vs NumPy vs Rust (fetches pypbo at a pinned commit)
 	uv sync --all-extras --group dev --group bench
-	uv run python benchmarks/bench_pbo.py
+	uv run python -m benchmarks.bench_pbo
 
 data:               ## re-download BTCUSDT daily klines from data.binance.vision
 	uv run python -m experiments.data

@@ -5,7 +5,7 @@ source files at a pinned commit into ``benchmarks/_vendor/`` (git-ignored, not r
 and imports them. Run with::
 
     uv sync --all-extras --group bench
-    uv run python benchmarks/bench_pbo.py
+    uv run python -m benchmarks.bench_pbo
 
 Writes ``benchmarks/results/pbo_benchmark.json`` and ``.md``.
 All implementations use the same metric (per-column Sharpe, ddof=1) and the same CSCV
@@ -26,6 +26,8 @@ from pathlib import Path
 
 import numpy as np
 
+from experiments.provenance import provenance
+from trial_ledger.hashing import hash_array, hash_file
 from trial_ledger.stats import pbo_cscv
 
 HERE = Path(__file__).parent
@@ -74,27 +76,30 @@ def fetch_pypbo():
     return importlib.import_module("pypbo.pbo")
 
 
-def timeit(fn, repeat: int) -> float:
-    best = float("inf")
+def timeit(fn, repeat: int) -> list[float]:
+    samples = []
     for _ in range(repeat):
         t0 = time.perf_counter()
         fn()
-        best = min(best, time.perf_counter() - t0)
-    return best
+        samples.append(time.perf_counter() - t0)
+    return samples
 
 
 RUST_1T = """
-import sys, time, numpy as np, trial_ledger_core as c
+import sys, time, json, numpy as np, trial_ledger_core as c
+from trial_ledger.hashing import hash_array
 t, n, s, seed, rep = map(int, sys.argv[1:])
 m = np.random.default_rng(seed).standard_t(4, (t, n)) * 0.01
-best = 1e9
+samples = []
 for _ in range(rep):
-    t0 = time.perf_counter(); c.pbo_cscv_sharpe(m, s); best = min(best, time.perf_counter() - t0)
-print(best, c.num_threads())
+    t0 = time.perf_counter(); c.pbo_cscv_sharpe(m, s); samples.append(time.perf_counter() - t0)
+outputs = c.pbo_cscv_sharpe(m, s)
+print(json.dumps({'samples':samples, 'threads':c.num_threads(),
+                  'hashes':[hash_array(x) for x in outputs]}))
 """
 
 
-def rust_single_thread(t: int, n: int, s: int, seed: int, repeat: int) -> float:
+def rust_single_thread(t: int, n: int, s: int, seed: int, repeat: int, hashes) -> list[float]:
     env = {**os.environ, "RAYON_NUM_THREADS": "1"}
     out = subprocess.run(
         [sys.executable, "-c", RUST_1T, str(t), str(n), str(s), str(seed), str(repeat)],
@@ -103,9 +108,10 @@ def rust_single_thread(t: int, n: int, s: int, seed: int, repeat: int) -> float:
         text=True,
         check=True,
     )
-    secs, threads = out.stdout.split()
-    assert int(threads) == 1
-    return float(secs)
+    result = json.loads(out.stdout)
+    assert result["threads"] == 1
+    assert result["hashes"] == hashes
+    return result["samples"]
 
 
 def main() -> None:
@@ -114,6 +120,17 @@ def main() -> None:
     from trial_ledger.pbo import pbo
 
     pypbo = fetch_pypbo()
+    receipt = provenance(
+        {
+            "cases": CASES,
+            "rayon_threads": core.num_threads(),
+            "numpy_repeats": 7,
+            "rust_repeats": 25,
+            "pypbo_repeats": 3,
+            "generic_repeats": 3,
+        }
+    )
+    benchmark_sha = hash_file(__file__)
     rows = []
     for i, (t, n, s) in enumerate(CASES):
         seed = 100 + i
@@ -121,28 +138,40 @@ def main() -> None:
 
         ref = pbo_cscv(m, s)
         rust = pbo(m, s, backend="rust")
-        np.testing.assert_allclose(rust.logits, ref.logits, atol=1e-12)
+        np.testing.assert_allclose(rust.logits, ref.logits, atol=1e-12, rtol=0)
         assert rust.pbo == ref.pbo
+        outputs = core.pbo_cscv_sharpe(m, s)
+        hashes = [hash_array(x) for x in outputs]
         run_pypbo = pypbo_bytes(t, n, s) <= PYPBO_MAX_BYTES
-        t_pypbo = None
+        samples_pypbo = None
         if run_pypbo:
             res_pypbo = pypbo.pbo(m, S=s, metric_func=sharpe_cols, threshold=0, n_jobs=1)
-            np.testing.assert_allclose(np.asarray(res_pypbo.logits), ref.logits, atol=1e-9)
+            np.testing.assert_allclose(np.asarray(res_pypbo.logits), ref.logits, atol=1e-9, rtol=0)
             assert abs(res_pypbo.pbo - ref.pbo) < 1e-12  # pypbo sums phi/C, we take a mean
             del res_pypbo
-            t_pypbo = timeit(
+            samples_pypbo = timeit(
                 lambda: pypbo.pbo(m, S=s, metric_func=sharpe_cols, threshold=0, n_jobs=1),
-                repeat=1,
+                repeat=3,
             )
-        t_generic = timeit(lambda: pbo_cscv(m, s, metric=sharpe_cols), repeat=1)
-        t_numpy = timeit(lambda: pbo_cscv(m, s), repeat=3)
-        t_rust1 = rust_single_thread(t, n, s, seed, repeat=5)
-        t_rust = timeit(lambda: core.pbo_cscv_sharpe(m, s), repeat=5)
+        samples = {
+            "pypbo": samples_pypbo,
+            "numpy_generic": timeit(lambda: pbo_cscv(m, s, metric=sharpe_cols), repeat=3),
+            "numpy_blockstats": timeit(lambda: pbo_cscv(m, s), repeat=7),
+            "rust_1thread": rust_single_thread(t, n, s, seed, repeat=25, hashes=hashes),
+            "rust_parallel": timeit(lambda: core.pbo_cscv_sharpe(m, s), repeat=25),
+        }
+        medians = {k: float(np.median(v)) if v else None for k, v in samples.items()}
+        t_pypbo, t_rust = medians["pypbo"], medians["rust_parallel"]
+        t_rust1, t_numpy = medians["rust_1thread"], medians["numpy_blockstats"]
         row = {
             "T": t, "N": n, "S": s, "splits": ref.n_splits, "pbo": ref.pbo,
+            "seed": seed, "input_sha256": hash_array(m), "rust_output_sha256": hashes,
+            "checks": {"numpy_pbo_exact": True, "numpy_logits_atol": 1e-12,
+                       "rust_threads_byte_identical": True, "pypbo_checked": run_pypbo},
             "pypbo_s": t_pypbo,
             "pypbo_est_memory_gb": pypbo_bytes(t, n, s) / 1e9,
-            "numpy_generic_s": t_generic,
+            "samples_seconds": samples,
+            "numpy_generic_s": medians["numpy_generic"],
             "numpy_blockstats_s": t_numpy,
             "rust_1thread_s": t_rust1,
             "rust_threads": core.num_threads(),
@@ -157,12 +186,15 @@ def main() -> None:
 
     meta = {
         "machine": platform.platform(),
+        "provenance": receipt,
+        "benchmark_source_sha256": benchmark_sha,
+        "rust_source_sha256": hash_file("rust/src/lib.rs"),
         "processor": platform.processor() or platform.machine(),
         "cpu_count": os.cpu_count(),
         "python": sys.version.split()[0],
         "numpy": np.__version__,
         "pypbo_commit": PYPBO_COMMIT,
-        "timing": "best of N wall-clock runs (pypbo and numpy_generic: 1 run)",
+        "timing": "median wall-clock runs; all samples recorded, shared machine",
         "pypbo_skip_rule": f"skipped when its estimated memory exceeds {PYPBO_MAX_BYTES:.1e} B",
     }
     OUT.mkdir(exist_ok=True)

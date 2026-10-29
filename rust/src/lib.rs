@@ -96,9 +96,12 @@ pub fn pbo_cscv(data: &[f64], t: usize, n: usize, s: usize) -> Result<Vec<Split>
     let splits = combinations(s, s / 2);
     let out: Vec<Split> = splits
         .par_iter()
+        // Bound task-local scratch allocations and scheduling overhead while
+        // retaining enough tasks to balance uneven split work across workers.
+        .with_min_len((splits.len() / (rayon::current_num_threads() * 8)).max(1))
         .map_init(
-            || (vec![0.0f64; n], vec![0.0f64; n], vec![0.0f64; n]),
-            |(tr_sum, tr_sq, te_sr), train| {
+            || (vec![0.0f64; n], vec![0.0f64; n]),
+            |(tr_sum, tr_sq), train| {
                 tr_sum.iter_mut().for_each(|x| *x = 0.0);
                 tr_sq.iter_mut().for_each(|x| *x = 0.0);
                 for &b in train {
@@ -119,13 +122,11 @@ pub fn pbo_cscv(data: &[f64], t: usize, n: usize, s: usize) -> Result<Vec<Split>
                         best = j;
                     }
                 }
-                for j in 0..n {
-                    te_sr[j] = sharpe(tot_sum[j] - tr_sum[j], tot_sq[j] - tr_sq[j], half);
-                }
-                let v = te_sr[best];
+                let v = sharpe(tot_sum[best] - tr_sum[best], tot_sq[best] - tr_sq[best], half);
                 let mut less = 0usize;
                 let mut equal = 0usize;
-                for &x in te_sr.iter() {
+                for j in 0..n {
+                    let x = sharpe(tot_sum[j] - tr_sum[j], tot_sq[j] - tr_sq[j], half);
                     if x < v {
                         less += 1;
                     } else if x == v {
