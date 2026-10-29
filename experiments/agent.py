@@ -20,6 +20,7 @@ from trial_ledger.service import MAX_SWEEP, BacktestService
 
 from .llm import ChatClient, slug
 from .markets import make_market
+from .provenance import provenance
 
 TOOL_BUDGET = 30
 MAX_TURNS = 45
@@ -161,9 +162,9 @@ def run_episode(
     if out_dir.exists():
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True)
-    ledger = Ledger(out_dir / "ledger")
+    ledger = Ledger(out_dir / "ledger", returns_directory=(results_dir or RESULTS) / "returns")
     svc = BacktestService(
-        market, ledger, agent=model, session_id=run_id, source="agent", store_returns=False
+        market, ledger, agent=model, session_id=run_id, source="agent", store_returns=True
     )
     client = ChatClient(model, temperature=temperature, offline=offline)
     desc = svc.describe()
@@ -267,6 +268,16 @@ def run_episode(
         "ledger_records": len(ledger.records()),
         "ledger_head": " ".join(map(str, ledger.head())),
         "api_calls": client.n_api_calls,
+        "provenance": provenance(
+            {
+                "model": model,
+                "seed": seed,
+                "market": kind,
+                "rep": rep,
+                "temperature": temperature,
+                "tool_budget": TOOL_BUDGET,
+            }
+        ),
     }
     (out_dir / "transcript.json").write_text(json.dumps(messages, indent=1))
     (out_dir / "episode.json").write_text(json.dumps(record, indent=1))
@@ -291,14 +302,14 @@ def run_random_search(
     if out_dir.exists():
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True)
-    ledger = Ledger(out_dir / "ledger")
+    ledger = Ledger(out_dir / "ledger", returns_directory=(results_dir or RESULTS) / "returns")
     svc = BacktestService(
         market,
         ledger,
         agent="random-search",
         session_id=run_id,
         source="baseline",
-        store_returns=False,
+        store_returns=True,
     )
     rng = random.Random(f"{kind}-{seed}-{rep}")
     best = None

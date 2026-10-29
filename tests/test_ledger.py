@@ -113,12 +113,29 @@ def test_rehashed_forgery_is_caught_by_external_anchor(ledger):
 
 def test_detects_tampered_returns_file(ledger):
     rec = ledger.records()[0]
-    p = ledger.returns_dir / f"{rec['returns_hash']}.npy"
-    arr = np.load(p)
+    p = ledger.returns_dir / f"{rec['returns_hash']}.npz"
+    with np.load(p) as stored:
+        arr = stored["returns"]
     arr[0] += 1.0
-    np.save(p, arr)
+    np.savez_compressed(p, returns=arr)
     kinds = {i.kind for i in ledger.verify(check_returns=True).issues}
     assert kinds == {"returns_mismatch"}
+
+
+def test_shared_compressed_store_and_legacy_npy(tmp_path):
+    arr = np.random.default_rng(4).normal(size=200)
+    shared = tmp_path / "objects"
+    first = Ledger(tmp_path / "a", returns_directory=shared)
+    rec = first.append(returns=arr)
+    second = Ledger(tmp_path / "b", returns_directory=shared)
+    second.append(returns=arr)
+    assert len(list(shared.glob("*.npz"))) == 1
+    np.testing.assert_array_equal(Ledger(first.dir).load_returns(rec["returns_hash"]), arr)
+    assert first.verify(check_returns=True).ok
+    # Existing user stores remain readable.
+    (shared / f"{rec['returns_hash']}.npz").unlink()
+    np.save(shared / f"{rec['returns_hash']}.npy", arr)
+    assert second.verify(check_returns=True).ok
 
 
 def test_concurrent_appends_keep_chain_valid(tmp_path):

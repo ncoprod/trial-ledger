@@ -27,5 +27,5 @@ def provenance(config: dict[str, Any]) -> dict[str, Any]:
         },
         "python": platform.python_version(),
         "config": config,
-        "hosted_model_revision": "not exposed by the provider; model alias and CLI version recorded",
+        "hosted_model_revision": "not exposed; model alias and CLI version recorded",
     }

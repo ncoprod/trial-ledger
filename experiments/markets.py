@@ -156,7 +156,8 @@ def generate_garch_returns(seed: int, n: int = N_NULL, burn: int = 500) -> np.nd
         out[t] = math.sqrt(h) * z[t]
         h = g.omega + g.alpha * out[t] ** 2 + g.beta * h
     r = out[burn:]
-    return np.clip(r, -0.95, None)  # simple returns cannot fall below -100%
+    # Symmetric clipping preserves zero conditional mean and valid simple returns.
+    return np.clip(r, -0.95, 0.95)
 
 
 def make_market(kind: str, seed: int) -> tuple[Market, Market | None, int | None]:

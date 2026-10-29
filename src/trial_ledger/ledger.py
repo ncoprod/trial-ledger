@@ -4,7 +4,8 @@ Layout of a ledger directory (default ``.trial-ledger/``)::
 
     ledger.jsonl      one JSON record per line, append-only
     HEAD              "<seq> <hash>" of the last record, rewritten after each append
-    returns/<h>.npy   optional content-addressed store of trial return series
+    returns/<h>.npz  compressed content-addressed store (legacy .npy also readable)
+    RETURNS_STORE    optional relative path to a shared returns store
     .lock             advisory lock serialising concurrent writers
 
 Each record carries ``prev_hash`` and ``hash = SHA-256(prev_hash || canonical_json(body))``
@@ -65,15 +66,29 @@ class VerifyResult:
 class Ledger:
     """A hash-chained trial ledger stored in a directory."""
 
-    def __init__(self, directory: str | os.PathLike[str] | None = None):
+    def __init__(
+        self,
+        directory: str | os.PathLike[str] | None = None,
+        *,
+        returns_directory: str | os.PathLike[str] | None = None,
+    ):
         self.dir = Path(directory) if directory is not None else default_ledger_dir()
         self.path = self.dir / "ledger.jsonl"
         self.head_path = self.dir / "HEAD"
-        self.returns_dir = self.dir / "returns"
+        self.store_pointer = self.dir / "RETURNS_STORE"
+        if returns_directory is not None:
+            self.returns_dir = Path(returns_directory).resolve()
+        elif self.store_pointer.exists():
+            self.returns_dir = self.dir / self.store_pointer.read_text().strip()
+        else:
+            self.returns_dir = self.dir / "returns"
 
     # ------------------------------------------------------------------ io helpers
     def _ensure(self) -> None:
+        self.dir.mkdir(parents=True, exist_ok=True)
         self.returns_dir.mkdir(parents=True, exist_ok=True)
+        if self.returns_dir.resolve() != (self.dir / "returns").resolve():
+            self.store_pointer.write_text(os.path.relpath(self.returns_dir, self.dir) + "\n")
         self.path.touch(exist_ok=True)
 
     @contextmanager
@@ -129,18 +144,31 @@ class Ledger:
         arr = np.ascontiguousarray(np.asarray(returns, dtype="<f8"))
         h = hash_array(arr)
         self._ensure()
-        p = self.returns_dir / f"{h}.npy"
+        p = self.returns_dir / f"{h}.npz"
         if not p.exists():
-            tmp = p.with_suffix(".tmp.npy")
-            np.save(tmp, arr, allow_pickle=False)
-            os.replace(tmp, p)
+            tmp = p.with_name(f".{h}.{uuid.uuid4().hex}.npz")
+            try:
+                np.savez_compressed(tmp, returns=arr)
+                os.replace(tmp, p)
+            finally:
+                tmp.unlink(missing_ok=True)
         return h
 
     def load_returns(self, returns_hash: str) -> np.ndarray | None:
+        if len(returns_hash) != 64 or any(c not in "0123456789abcdef" for c in returns_hash):
+            raise ValueError("invalid returns hash")
+        compressed = self.returns_dir / f"{returns_hash}.npz"
         p = self.returns_dir / f"{returns_hash}.npy"
-        if not p.exists():
+        if compressed.exists():
+            with np.load(compressed, allow_pickle=False) as stored:
+                arr = stored["returns"]
+        elif p.exists():
+            arr = np.load(p, allow_pickle=False)
+        else:
             return None
-        return np.load(p, allow_pickle=False)
+        if hash_array(arr) != returns_hash:
+            raise ValueError(f"return series content does not match {returns_hash}")
+        return arr
 
     # ------------------------------------------------------------------ append
     def append(
@@ -258,11 +286,15 @@ class Ledger:
                         )
                     )
                 if check_returns and rec.get("returns_hash"):
-                    arr = self.load_returns(rec["returns_hash"])
-                    if arr is None:
-                        issues.append(VerifyIssue(lineno, "returns_missing", rec["returns_hash"]))
-                    elif hash_array(arr) != rec["returns_hash"]:
+                    try:
+                        arr = self.load_returns(rec["returns_hash"])
+                    except (ValueError, OSError):
                         issues.append(VerifyIssue(lineno, "returns_mismatch", rec["returns_hash"]))
+                    else:
+                        if arr is None:
+                            issues.append(
+                                VerifyIssue(lineno, "returns_missing", rec["returns_hash"])
+                            )
                 prev = stored if stored is not None else recomputed
                 last_hash = prev
                 expected_seq = (rec.get("seq") or expected_seq) + 1

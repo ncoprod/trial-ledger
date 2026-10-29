@@ -15,6 +15,7 @@ import json
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import nullcontext
 
 from .markets import MARKET_KINDS
 
@@ -47,13 +48,25 @@ def _jobs(models, markets, seeds, btc_reps):
 
 
 def cmd_agents(args) -> int:
-    from .agent import run_episode
+    from .agent import RESULTS, run_episode
+    from .llm import nim_slot, slug
+
+    if not args.offline and args.workers != 1:
+        raise ValueError("online batches must use one worker per shared NIM slot")
 
     jobs = list(_jobs(args.models, args.markets, _seeds(args.seeds), args.btc_reps))
+    if args.resume:
+
+        def complete(job):
+            m, k, s = job
+            p = RESULTS / "runs" / slug(m) / f"{k}-s{s}-r0" / "episode.json"
+            return p.exists() and json.loads(p.read_text())["status"] == "ok"
+
+        jobs = [j for j in jobs if not complete(j)]
     print(f"{len(jobs)} episodes, {args.workers} workers, offline={args.offline}", flush=True)
     t0 = time.time()
     failures = 0
-    with ThreadPoolExecutor(args.workers) as ex:
+    with nullcontext() if args.offline else nim_slot(), ThreadPoolExecutor(args.workers) as ex:
         futs = {ex.submit(run_episode, m, k, s, 0, args.offline): (m, k, s) for m, k, s in jobs}
         for i, f in enumerate(as_completed(futs), 1):
             m, k, s = futs[f]
@@ -125,6 +138,27 @@ def cmd_replay_check(args) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         for e in eps:
+            if "-cli/" in e["model"]:
+                # CLI inference is not reproducible offline. Audit its anchored ledger
+                # and rerun each recorded evaluation; never impersonate an API replay.
+                from trial_ledger.backtest import run_backtest
+                from trial_ledger.hashing import hash_array
+                from trial_ledger.ledger import Ledger
+
+                from .markets import make_market
+
+                path = RESULTS / "runs" / e["model"].replace("/", "__") / e["run_id"]
+                ledger = Ledger(path / "ledger")
+                market, _, _ = make_market(e["market"], e["seed"])
+                same = ledger.verify(expect_head=e["ledger_head"], check_returns=True).ok
+                same &= all(
+                    hash_array(run_backtest(r["strategy"], market).returns) == r["returns_hash"]
+                    for r in ledger.records()
+                )
+                bad += not same
+                if not same:
+                    print(f"CLI AUDIT MISMATCH {e['run_id']}", flush=True)
+                continue
             if e["model"] == "random-search":
                 new = run_random_search(e["market"], e["seed"], e["rep"], results_dir=tmp)
                 sub = "random-search"
@@ -168,7 +202,8 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--markets", nargs="+", default=list(MARKET_KINDS), choices=MARKET_KINDS)
     a.add_argument("--seeds", default="0-9")
     a.add_argument("--btc-reps", type=int, default=BTC_REPS)
-    a.add_argument("--workers", type=int, default=2)
+    a.add_argument("--workers", type=int, default=1)
+    a.add_argument("--resume", action="store_true", help="skip completed episodes")
     a.add_argument("--offline", action="store_true", help="replay from cache only")
     a.set_defaults(func=cmd_agents)
     b = sub.add_parser("baseline")

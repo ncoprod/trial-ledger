@@ -75,3 +75,15 @@ arithmetic on the fixed candidates, not candidate selection.
 - Source: `experiments/results/attempts/codex-cli__gpt-6.1-sol/pilot-2/`.
 
 Iteration 2 Linux outcome: PASS, all CI jobs green, Actions 40847620374 at 95051f7.
+
+## Iteration 5 — return-store portability
+
+- Hypothesis: one compressed shared content-addressed store avoids duplicated series
+  while preserving existing hash-chain anchors and supporting offline CLI PBO.
+- Initial result: FAIL on case-insensitive macOS: `RETURNS` collided with `returns/`.
+- Change: use the distinct `RETURNS_STORE` pointer, keep legacy `.npy` reads,
+  verify decompressed content hashes, use unique atomic temporary object filenames.
+- Command: `uv run --no-sync pytest tests/test_ledger.py tests/test_service_mcp.py -x`;
+  `uv run --no-sync python -m experiments.store_returns`.
+- Result: 20 focused tests PASS; historical hydration running. Source:
+  `experiments/results/returns_integrity.json` once hydration completes.

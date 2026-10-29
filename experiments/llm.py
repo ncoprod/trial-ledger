@@ -15,6 +15,7 @@ import random
 import sys
 import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,30 @@ from trial_ledger.hashing import canonical_json, sha256_hex
 CACHE_DIR = Path(__file__).parent / "cache"
 BASE_URL = os.environ.get("LLM_BASE_URL", "https://integrate.api.nvidia.com/v1")
 _GLOBAL_SEM = threading.Semaphore(int(os.environ.get("LLM_MAX_CONCURRENCY", "2")))
+
+
+@contextmanager
+def nim_slot():
+    """One atomic shared-machine slot for an entire serial NIM batch."""
+    root = Path.home() / ".cache"
+    root.mkdir(exist_ok=True)
+    slot = None
+    while slot is None:
+        for i in (1, 2):
+            candidate = root / f"nim-slot-{i}"
+            try:
+                candidate.mkdir()
+            except FileExistsError:
+                continue
+            slot = candidate
+            break
+        if slot is None:
+            time.sleep(10)
+    print(f"acquired {slot.name}", flush=True)
+    try:
+        yield
+    finally:
+        slot.rmdir()
 
 
 class CacheMiss(RuntimeError):

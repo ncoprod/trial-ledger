@@ -12,7 +12,7 @@ import numpy as np
 
 from .hooks import append_trials, code_hash_for_command, command_fields, parse_trial_attempts
 from .ledger import Ledger
-from .report import build_report, format_report
+from .report import _distinct, build_report, format_report, pbo_from_ledger
 
 
 def _ledger(args: argparse.Namespace) -> Ledger:
@@ -62,6 +62,17 @@ def cmd_head(args: argparse.Namespace) -> int:
     seq, h = _ledger(args).head()
     print(f"{seq} {h}")
     return 0
+
+
+def cmd_pbo(args: argparse.Namespace) -> int:
+    lg = _ledger(args)
+    verified = lg.verify(check_returns=True)
+    if not verified.ok:
+        print("ledger or return-series verification failed", file=sys.stderr)
+        return 1
+    value, n, note = pbo_from_ledger(lg, _distinct(lg.records()), args.partitions)
+    print(json.dumps({"pbo": value, "n_trials": n, "partitions": args.partitions, "note": note}))
+    return 0 if value is not None else 1
 
 
 def _load_series(path: str) -> np.ndarray:
@@ -146,6 +157,10 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--threshold", type=float, default=0.95)
     r.add_argument("--json", action="store_true")
     r.set_defaults(func=cmd_report)
+
+    p = sub.add_parser("pbo", help="verified CSCV PBO from stored return series")
+    p.add_argument("--partitions", type=int, default=16)
+    p.set_defaults(func=cmd_pbo)
 
     h = sub.add_parser("head", help='print "<seq> <hash>" of the last record (to anchor it)')
     h.set_defaults(func=cmd_head)
