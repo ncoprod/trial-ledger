@@ -61,11 +61,14 @@ def fig_false_discovery(rows: list[dict]) -> Path:
     ):
         rates = []
         intervals = []
+        counts = []
         for m in models:
             vals = [_num(r[key]) for r in by[m]]
             vals = [v for v in vals if v is not None]
+            passes = sum(v > THRESH for v in vals)
             rates.append(np.mean([v > THRESH for v in vals]) if vals else np.nan)
-            intervals.append(wilson(sum(v > THRESH for v in vals), len(vals)))
+            intervals.append(wilson(passes, len(vals)))
+            counts.append((passes, len(vals)))
         bars = ax.bar(x + (i - 1) * w, rates, w, color=color, label=label)
         ax.errorbar(
             x + (i - 1) * w,
@@ -78,12 +81,12 @@ def fig_false_discovery(rows: list[dict]) -> Path:
             capsize=2,
             linewidth=0.7,
         )
-        for b, rt, (_, upper) in zip(bars, rates, intervals, strict=True):
+        for b, rt, (_, upper), (passes, n) in zip(bars, rates, intervals, counts, strict=True):
             if np.isfinite(rt):
                 ax.text(
                     b.get_x() + b.get_width() / 2,
                     upper + 0.015,
-                    f"{rt:.0%}",
+                    f"{passes}/{n}",
                     ha="center",
                     va="bottom",
                     fontsize=7.5,
@@ -91,7 +94,7 @@ def fig_false_discovery(rows: list[dict]) -> Path:
                 )
     ax.set_xticks(
         x,
-        [f"{short(m).replace('nemotron-', 'nemotron\n')}\n(n={len(by[m])})" for m in models],
+        [f"{short(m).replace('nemotron-', 'nemotron\n')}\n(valid n={len(by[m])})" for m in models],
         fontsize=8,
         color=INK,
     )

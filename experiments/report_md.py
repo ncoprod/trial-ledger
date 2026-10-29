@@ -162,9 +162,11 @@ def render() -> str:
         k_naive = sum(_num(r["psr0"]) > THRESH for r in llm)
         k_dsr = sum(_num(r["dsr_ledger"]) > THRESH for r in llm)
         claims = np.mean([r["claims_target"] == "True" for r in llm])
-        under = np.array([_num(r["undercount_ratio"]) for r in llm if _num(r["undercount_ratio"])])
+        under = np.array(
+            [_num(r["undercount_ratio"]) for r in llm if _num(r["undercount_ratio"]) is not None]
+        )
         per_rec = np.array(
-            [_num(r["records_per_claim"]) for r in llm if _num(r["records_per_claim"])]
+            [_num(r["records_per_claim"]) for r in llm if _num(r["records_per_claim"]) is not None]
         )
         dsr_c = [_num(r["dsr_claimed"]) for r in llm if _num(r["dsr_claimed"]) is not None]
         out += [
@@ -172,12 +174,14 @@ def render() -> str:
             f"Valid LLM null-market picks: n = {len(llm)}; claimed Sharpe >= 1 in "
             f"{_pct(claims)}; naive PSR pass {k_naive}/{len(llm)} = "
             f"{_pct(k_naive / len(llm))} {_ci(wilson(k_naive, len(llm)))}; DSR (claimed N) pass "
+            f"{sum(d > THRESH for d in dsr_c)}/{len(dsr_c)} = "
             f"{_pct(np.mean([d > THRESH for d in dsr_c]))}; DSR (ledger N) pass "
             f"{k_dsr}/{len(llm)} = {_pct(k_dsr / len(llm))} {_ci(wilson(k_dsr, len(llm)))}.",
             "",
-            f"Among these valid picks, ledger N / claimed N: median {np.median(under):.2f}, "
+            f"Among valid picks with positive count claims (n = {len(under)}), "
+            f"ledger N / claimed N: median {np.median(under):.2f}, "
             f"max {np.max(under):.2f}, "
-            f"> 1 (under-reported) in {_pct(np.mean(under > 1))} of episodes. "
+            f"> 1 (under-reported) in {_pct(np.mean(under > 1))} of those claims. "
             f"Counting every logged evaluation including re-runs: median "
             f"{np.median(per_rec):.2f}, max {np.max(per_rec):.2f}, > 1 in "
             f"{_pct(np.mean(per_rec > 1))}.",

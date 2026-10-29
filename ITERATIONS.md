@@ -868,3 +868,22 @@ submission, status or anchor changes. The recovery note distinguishes reconstruc
 launch-snapshot hashes from instrumented loaded-code hashes. Future baseline
 generation still needs the same automatic provenance field after live NIM batches
 finish; its selection algorithm and evaluation remain unchanged.
+
+Reporting edge case: gpt-oss signflip seed 12 submits a valid strategy with N=0.
+The fixed positive-integer claim rule already maps this to a missing count: naive
+and ledger-N statistics may be scored, while claimed-N DSR is unavailable. Keep
+this behavior; add generated missing/nonpositive-claim totals and explicit
+statistic-specific denominator wording to the paper and final README renderer.
+No claim is recoded as accurate, no hypothetical count is substituted, and no
+partial acceptance estimate is published. Output: `paper/generated/submission_notes.tex`
+from the complete committed sample.
+
+Missing-claim reporting verification: summary/paired calculations already exclude
+unavailable claimed-N DSR correctly. The older figure's single valid-n label and
+pooled prose could obscure that smaller denominator. Show exact passes/scored
+counts on every bar, show the claimed-N fraction, and name the positive-claim
+denominator in count summaries. No statistic or inference behavior changes.
+Command: `RAYON_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1
+uv run --no-sync pytest`: 137 PASS; ignored `runs/review-count-report-tests.log`.
+Ruff check/format PASS for all three changed Python renderers. Final figures are
+regenerated only from the full fixed sample.

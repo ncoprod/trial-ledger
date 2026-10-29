@@ -284,10 +284,17 @@ def main():
         "lrrr",
     )
     outside = sum(r["submitted_valid"] and not r["submitted_in_ledger"] for r in episodes)
+    agent_null = [r for r in episodes if r["market"] != "btc" and r["model"] != "random-search"]
+    missing_claims = [r for r in agent_null if r.get("claimed_n") is None]
+    missing_ok = sum(r["status"] == "ok" for r in missing_claims)
     (OUT / "submission_notes.tex").write_text(
         f"Across all markets, {outside} valid submitted specifications were absent "
         "from their episode's recorded search. They are flagged and scored as submitted; "
         "no best recorded trial replaces them.\n"
+        f"Of {len(agent_null)} planned agent null attempts, {len(missing_claims)} lack "
+        f"a usable positive count claim; {missing_ok} of these have status ok. "
+        "Missing or nonpositive counts remain in attempt accounting and are not "
+        "classified as accurate self-reports.\n"
     )
     failures = [
         [NAMES[m], tex(status), count]
