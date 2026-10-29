@@ -72,8 +72,18 @@ def test_csv_preserves_acceptance_boundary(tmp_path, monkeypatch):
         assert (float(restored[key]) > analyze.THRESH) == (value > analyze.THRESH)
 
 
-@pytest.mark.parametrize("status", ["ok", "invalid_submission"])
-def test_invalid_submission_preserves_counts_without_substitute_pick(tmp_path, monkeypatch, status):
+@pytest.mark.parametrize(
+    ("status", "family", "valid"),
+    [
+        ("ok", "invalid", False),
+        ("invalid_submission", "invalid", False),
+        ("timeout", "momentum", True),
+        ("cli_error", "momentum", True),
+    ],
+)
+def test_failed_submission_preserves_counts_without_substitute_pick(
+    tmp_path, monkeypatch, status, family, valid
+):
     import json
 
     from experiments.analyze import analyze_episode
@@ -92,13 +102,13 @@ def test_invalid_submission_preserves_counts_without_substitute_pick(tmp_path, m
         "status": status,
         "tool_calls": 1,
         "ledger_head": " ".join(map(str, ledger.head())),
-        "submission": {"strategy": {"family": "invalid"}, "n_strategies_tested": 7},
+        "submission": {"strategy": {"family": family}, "n_strategies_tested": 7},
     }
     (tmp_path / "episode.json").write_text(json.dumps(ep))
     row = analyze_episode(tmp_path)
     assert row["n_ledger"] == 1 and row["claimed_n"] == 7
-    assert not row["submitted_valid"] and "psr0" not in row
-    assert row["status"] == "invalid_submission"
+    assert row["submitted_valid"] == valid and "psr0" not in row
+    assert row["status"] == ("invalid_submission" if status == "ok" else status)
     from experiments import paired_tests
 
     monkeypatch.setattr(paired_tests, "RESULTS", tmp_path)

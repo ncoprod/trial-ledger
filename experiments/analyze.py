@@ -113,7 +113,7 @@ def analyze_episode(ep_dir: Path) -> dict[str, Any]:
         "reported_sharpe": reported,
         "best_ledger_sharpe": (best_trial["sharpe_ann"] if best_trial else None),
     }
-    if selected is None:
+    if selected is None or ep["status"] != "ok":
         return row
     res = run_backtest(selected, market)
     sr, n, sk, ku = res.sharpe, res.n_obs, res.skew, res.kurtosis

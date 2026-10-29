@@ -677,3 +677,19 @@ successfully uploaded a temporary object-staging branch with HTTP/1.1 and
 settings. No history was rewritten or force-pushed. The temporary branch is
 removed once main is synchronized. Logs are under ignored `runs/review-push*`
 and `runs/trace-upload.log`.
+
+Publication follow-up: a failed CLI process could leave a syntactically valid
+partial final answer. Preserve its specification validity and claim accounting,
+but return an unscored failed row so every acceptance export uses the protocol's
+completed-pick denominator. Regression cases cover both timeout and nonzero CLI
+exit with a valid rule. `uv run --no-sync pytest tests/test_experiment.py -q`:
+16 PASS; lint/format PASS. The corrected manifest explicitly records the protocol
+commit, causal sizing rule and previously exposed BTC status. No search or test
+outcome guided this reporting guard.
+
+Local committed-ledger smoke command: `RAYON_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1
+VECLIB_MAXIMUM_THREADS=1 uv run --no-sync trial-ledger --dir
+experiments/results/causal-v2/runs/random-search/signflip-s0-r0/ledger pbo`:
+PASS, PBO 0.5737373737373738 from 140 trials, S=16, no alignment exception.
+Raw output: ignored `runs/review-pbo-smoke.json`. The five corrected Codex BTC
+sessions completed successfully; their held-out metrics are not used for tuning.

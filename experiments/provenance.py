@@ -42,6 +42,10 @@ def write_manifest() -> None:
     artifacts += sorted((RESULTS / "figures").glob("*.png"))
     receipt = provenance(
         {
+            "evaluation_version": "causal-v2",
+            "protocol_commit": "5dcf789ab54c0c6b0605f334f6edaa3612131dfe",
+            "volatility_target": "fixed 0.02 per period; lagged 20-period denominator; cap 2",
+            "btc_diagnostic_note": "previously exposed period; not an untouched test",
             "models": sorted({e["model"] for e in episodes}),
             "seeds_by_model": {
                 m: sorted({e["seed"] for e in episodes if e["model"] == m})

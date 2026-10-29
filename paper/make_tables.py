@@ -140,7 +140,7 @@ def main():
         "ResearchEnd": config["is_period"][1],
         "TestStart": config["oos_period"][0],
         "TestEnd": config["oos_period"][1],
-        "ProtocolCommit": "5dcf789a",
+        "ProtocolCommit": config["protocol_commit"][:8],
         "AnalysisCommit": provenance["git_commit"][:12],
         "StoredLedgers": store["ledgers"],
         "StoredTrials": f"{store['trials']:,}",
@@ -169,7 +169,7 @@ def main():
     model_rows = []
     for model, rows in by_model.items():
         null = [r for r in rows if r["market"] != "btc"]
-        valid = [r for r in null if r["submitted_valid"]]
+        valid = [r for r in null if r["submitted_valid"] and r["status"] == "ok"]
         claims = [r for r in null if r.get("claimed_n")]
         under = sum(r["claimed_n"] < r["n_ledger"] for r in claims)
         model_rows.append(
@@ -256,7 +256,7 @@ def main():
     btc_rows = []
     for model, rows in by_model.items():
         btc = [r for r in rows if r["market"] == "btc"]
-        valid = [r for r in btc if r.get("oos_sharpe") is not None]
+        valid = [r for r in btc if r.get("oos_sharpe") is not None and r["status"] == "ok"]
         specs = {json.dumps(r["selected_strategy"], sort_keys=True) for r in valid}
         btc_rows.append(
             [
