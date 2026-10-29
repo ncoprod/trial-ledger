@@ -265,8 +265,13 @@ Verification milestone: full suite 108 PASS in 8.99 s; Actions 40853488417 PASS.
   cases, then measures pypbo/NumPy/Rust with all samples and equality checks retained.
   This is a measurement change, not a strategy/kernel tuning iteration.
 - Command: `gh workflow run benchmark.yml --ref main`; retrieve its result artifact.
-- Result: pending. Keep every shared-M1 result; do not select its inflated ratio as
-  a headline. Source: `benchmarks/results/pbo_benchmark.json`; isolated artifacts
+- Result: PASS on isolated Linux, all five NumPy/PBO and thread equality checks.
+  Four feasible pypbo comparisons give 182.17–1135.50x median speedups. Original
+  versus final Rust medians improve on every interleaved case (1.09–1.17x); largest
+  219.863 -> 189.664 ms. The largest pypbo matrix is skipped by the prespecified
+  memory cap. Keep all shared-M1 results, including regressions and inflated ratios.
+  This is a new hardware/method baseline, not a comparison with the old best-of-M1
+  160–1463x headline. Source: `benchmarks/results/pbo_benchmark.json`; isolated artifacts
   will be stored under `benchmarks/results/linux/` with the Actions run reference.
 - Reproduce native variants: `uv run --no-sync python -m benchmarks.build_variants runs/native-variants`.
 
@@ -284,3 +289,19 @@ Verification milestone: full suite 108 PASS in 8.99 s; Actions 40853488417 PASS.
 - Result files: `experiments/results/episodes.json`, `paired_tests.json`; failed
   command log: ignored `runs/cli-cohort-analysis.log`. This is an analysis repair,
   with no new strategy selection or held-out test evaluation.
+
+## Iteration 18 — completed Codex cohort and isolated performance evidence
+
+- Hypothesis: extending the predeclared CLI sample improves precision without
+  changing the prompt, strategy families or acceptance threshold.
+- Change: finish seeds 20–29 on both null markets and five BTC repetitions,
+  following the initial seeds 0–19; do not retry invalid submissions.
+- Command: `uv run --no-sync python -m experiments.cli_agents --agent codex --seeds 20-29 --markets signflip garch --reps 1`;
+  `uv run --no-sync python -m experiments.cli_agents --agent codex --seeds 0-4 --markets btc --reps 1`.
+- Result: 65 receipts, including 60 null attempts (58 valid) and five BTC attempts.
+  Naive acceptance is 49/58, ledger and claimed DSR each 0/58. Wilson half-widths
+  are 9.275 and 3.106 percentage points, satisfying the target. Two invalid null
+  answers remain in the denominator of attempts, not substituted picks.
+- Result files: `experiments/results/runs/codex-cli__gpt-6.1-sol/`,
+  `experiments/results/paired_tests.json` and `episodes.json` after analysis.
+  NIM extension is still running; final aggregation will retain every attempt.
