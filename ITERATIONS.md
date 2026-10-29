@@ -693,3 +693,17 @@ experiments/results/causal-v2/runs/random-search/signflip-s0-r0/ledger pbo`:
 PASS, PBO 0.5737373737373738 from 140 trials, S=16, no alignment exception.
 Raw output: ignored `runs/review-pbo-smoke.json`. The five corrected Codex BTC
 sessions completed successfully; their held-out metrics are not used for tuning.
+
+Review CI iteration: run 40946080229 passes reproduction, lint, Python, both Rust
+jobs and the macOS wheel's complete-notice check. Linux source packaging fails
+with permission denied: the manylinux container owns rust/dist, while the source
+archive step runs on the host. Focused change: write the source archive to a
+separate rust/sdist directory, verify wheel and source archives separately, upload
+both. Raw failure retained in ignored `runs/review-license-ci-failed.log`.
+
+Transport outcome: all 66 small streamed object batches uploaded. A temporary
+merge made the original target reachable, then main advanced to its original
+commits with zero objects retransmitted. The temporary branch was deleted;
+187ee8ee and 21c36bb6 then pushed normally. Main history was neither rewritten nor
+backdated. The single large streamed attempt also failed and is retained in the
+ignored log. Request size remains an environment limitation, not a result change.

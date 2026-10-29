@@ -79,15 +79,20 @@ jobs:
         with:
           working-directory: rust
           command: sdist
-          args: --out dist
+          args: --out sdist
       - uses: astral-sh/setup-uv@v6
       - name: install the built wheel and check NumPy parity
         run: |
           uv sync --extra mcp --group dev --group experiments
-          uv run --no-sync python rust/check_licenses.py rust/dist/*
+          uv run --no-sync python rust/check_licenses.py rust/dist/*.whl
           uv pip install rust/dist/*.whl
           uv run --no-sync pytest tests/test_rust_parity.py
+      - name: check full notices in the source distribution
+        if: matrix.os == 'ubuntu-latest'
+        run: uv run --no-sync python rust/check_licenses.py rust/sdist/*.tar.gz
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.os }}-${{ matrix.target }}
-          path: rust/dist/*
+          path: |
+            rust/dist/*
+            rust/sdist/*
