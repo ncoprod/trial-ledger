@@ -401,3 +401,11 @@ Main cfdcaaf1 passes all GitHub CI jobs (40876756870).
 Iteration 22 verification: 11 focused tests PASS, ruff check/format PASS. The
 trial-count figure title also identifies its actual null-plus-BTC population;
 acceptance figures remain restricted to valid null-market picks.
+
+Iteration 22 interim refresh: `python -m experiments.paired_tests` on the existing
+176-row snapshot gives 25/71 NIM under-reports and 0/60 Codex under-reports when
+all usable claims are retained. Acceptance denominators remain 70 and 58.
+The refreshed manifest references committed/staged episode receipts, verified
+against index blob hashes; the newly completed signflip/seed-18 receipt and its
+returns are included. Full local suite: 111 passed in 19.32 s
+(`runs/pytest-post-reboot.log`, ignored).

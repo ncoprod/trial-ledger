@@ -18,11 +18,11 @@ See [third-party notices](THIRD_PARTY_NOTICES.md).
 ```mermaid
 flowchart LR
     D["Binance closes / frozen null inputs"] --> A["NIM tool loops / Codex CLI"]
-    A --> M["MCP evaluations + capture hook"]
+    A --> M["Shared backtester + CLI MCP/hooks"]
     M --> L["Anchored ledger + compressed returns"]
     L --> E["PSR / claimed-N DSR / ledger-N DSR / CSCV PBO"]
     E --> R["episodes.json / paired_tests.json / figures"]
-    D --> H["Sealed BTC test period"]
+    D --> H["Held-out BTC period"]
     A --> F["Fixed final candidate"]
     F --> H
     H --> R
@@ -40,13 +40,14 @@ live. Both search predefined rule families, rather than arbitrary strategy code.
 
 | Subject | Null attempts (valid picks) | Naive PSR passes [Wilson 95% CI] | Claimed-N DSR passes | Ledger-N DSR passes [Wilson 95% CI] | Under-reported N | Source |
 |---|---:|---|---:|---|---:|---|
-| Codex CLI | 60 (58) | 49/58 [73.07%, 91.62%] | 0/58 | 0/58 [0.00%, 6.21%] | 0/58 | [JSON](experiments/results/paired_tests.json) |
-| NIM tool loops | 71 (70) | 61/70 [77.34%, 93.09%] | 1/70 | 1/70 [0.25%, 7.66%] | 24/70 | [JSON](experiments/results/paired_tests.json) |
+| Codex CLI | 60 (58) | 49/58 [73.07%, 91.62%] | 0/58 | 0/58 [0.00%, 6.21%] | 0/60 | [JSON](experiments/results/paired_tests.json) |
+| NIM tool loops | 71 (70) | 61/70 [77.34%, 93.09%] | 1/70 | 1/70 [0.25%, 7.66%] | 25/71 | [JSON](experiments/results/paired_tests.json) |
 
 **Interim snapshot:** the fixed NIM extension is still running. All completed outcomes are retained; the final sample plan is in [PROTOCOL.md](experiments/PROTOCOL.md).
 
-Rates describe valid completed null-market picks; failed attempts remain in the
-reported denominator accounting and are never replaced with a best ledger trial.
+Acceptance rates describe valid completed null-market picks; failures remain in
+the attempt accounting and are never replaced with a best ledger trial. Trial-count
+accounting uses all positive claims, including invalid final strategy answers.
 Intervals are nominal Wilson intervals. Models reuse market seeds, so pooled iid
 inference is not claimed; market/seed cluster-bootstrap intervals are also in
 [the paired results](experiments/results/paired_tests.json). When no picks pass, the
@@ -218,9 +219,12 @@ Nothing is published to PyPI.
 - Ledger N deduplicates identical returns. Related trials remain correlated, and
   effective N is only a heuristic. The DSR's estimated Sharpe dispersion can be
   too small; count capture does not solve that statistical assumption.
+- CSCV conditions on the logged trial universe. The agent formed that universe
+  using the whole research window; its search is not rerun within each fold,
+  which limits claims about end-to-end generalisation.
 - Live hook firing is verified, but scored shell backtests outside MCP were not
   subjects in this experiment. Hook payload parsing also has synthetic tests.
-- BTC is one asset and one sealed period, with drift and beta exposure. It is a
+- BTC is one asset and one held-out period, with drift and beta exposure. It is a
   generalisation check, not evidence of trading skill. No test-based tuning occurs. Withholding tools does not exclude pretrained
   knowledge of public BTC history.
 - Claude Code Haiku was skipped after its recorded OAuth refresh failure.

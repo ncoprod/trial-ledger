@@ -80,7 +80,7 @@ Full-precision results and protocol: [paired_tests.json](paired_tests.json); [pr
 
 | cohort | valid null picks | naive passes | ledger-N DSR passes | under-reported |
 |---|---|---|---|---|
-| nim | 70 | 61 | 1 | 24 |
+| nim | 70 | 61 | 1 | 25 |
 | cli | 58 | 49 | 0 | 0 |
 
 | model | paired episodes | claimed-only pass | ledger-only pass | exact McNemar p | median DSR(claimed)-DSR(ledger) | Wilcoxon Holm p |
