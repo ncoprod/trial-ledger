@@ -29,6 +29,7 @@ class BacktestService:
         store_returns: bool = True,
         max_sweep: int = MAX_SWEEP,
         expose_trial_ids: bool = True,
+        tool_budget: int | None = None,
     ):
         self.market = market
         self.ledger = ledger
@@ -39,6 +40,7 @@ class BacktestService:
         self.max_sweep = max_sweep
         self.expose_trial_ids = expose_trial_ids
         self.n_calls = 0
+        self.tool_budget = tool_budget
         self.returns_by_seq: dict[int, np.ndarray] = {}
 
     # ------------------------------------------------------------------ helpers
@@ -67,6 +69,8 @@ class BacktestService:
 
     # ------------------------------------------------------------------ tools
     def run_backtest(self, strategy: dict[str, Any]) -> dict[str, Any]:
+        if self.tool_budget is not None and self.n_calls >= self.tool_budget:
+            return {"error": "backtest tool budget exhausted; submit your final answer"}
         self.n_calls += 1
         try:
             spec = normalise_spec(strategy)
@@ -82,6 +86,8 @@ class BacktestService:
         vol_target: bool = False,
         top_k: int = 5,
     ) -> dict[str, Any]:
+        if self.tool_budget is not None and self.n_calls >= self.tool_budget:
+            return {"error": "backtest tool budget exhausted; submit your final answer"}
         self.n_calls += 1
         if family not in FAMILIES:
             return {"error": f"unknown family {family!r}; choose one of {sorted(FAMILIES)}"}

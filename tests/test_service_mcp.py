@@ -43,6 +43,29 @@ def test_sweep_results_sorted(service):
     assert srs == sorted(srs, reverse=True)
 
 
+def test_research_budget_counts_calls_not_grid_points(service):
+    service.tool_budget = 2
+    assert service.run_sweep("momentum", {"lookback": [5, 10, 20]})["n_evaluated"] == 3
+    assert "error" not in service.run_backtest({"family": "momentum"})
+    assert "error" in service.run_backtest({"family": "momentum"})
+    assert "error" in service.run_sweep("momentum", {"lookback": [30]})
+    assert len(service.ledger.records()) == 4
+
+
+def test_research_catalog_hides_accounting(service):
+    pytest.importorskip("mcp")
+    from mcp import Client
+
+    from trial_ledger.mcp_server import create_server
+
+    async def go():
+        async with Client(create_server(service, research_only=True)) as client:
+            names = {t.name for t in (await client.list_tools()).tools}
+            assert names == {"describe_dataset", "run_backtest", "run_sweep"}
+
+    asyncio.run(go())
+
+
 def test_mcp_server_roundtrip(service):
     pytest.importorskip("mcp")
     from trial_ledger.mcp_server import create_server

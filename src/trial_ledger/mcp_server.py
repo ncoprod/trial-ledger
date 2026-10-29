@@ -41,6 +41,7 @@ def build_service(args: argparse.Namespace) -> BacktestService:
         session_id=args.session or uuid.uuid4().hex[:12],
         source="mcp",
         expose_trial_ids=not args.hide_trial_ids,
+        tool_budget=args.tool_budget,
     )
 
 
@@ -55,7 +56,7 @@ def _server_class():
         return FastMCP
 
 
-def create_server(service: BacktestService):
+def create_server(service: BacktestService, research_only: bool = False):
     """Build the MCP server (``MCPServer`` on mcp 2.x, ``FastMCP`` on mcp 1.x)."""
     families = "\n".join(f"- {k}: {v}" for k, v in FAMILY_DOCS.items())
     mcp = _server_class()(
@@ -99,17 +100,18 @@ def create_server(service: BacktestService):
     ) -> dict[str, Any]:
         return service.run_sweep(family, grid, long_only, vol_target, top_k)
 
-    @mcp.tool()
     def list_trials(limit: int = 20) -> dict[str, Any]:
         """Number of trials logged in this session and the most recent ones."""
         return service.list_trials(limit)
 
-    @mcp.tool()
     def ledger_report(claimed_n: int | None = None) -> dict[str, Any]:
         """Multiple-testing report for this session: best Sharpe, PSR, Deflated Sharpe Ratio
         with the ledger's trial count (and with `claimed_n` if given), and PBO."""
         return service.report(claimed_n)
 
+    if not research_only:
+        mcp.tool()(list_trials)
+        mcp.tool()(ledger_report)
     return mcp
 
 
@@ -126,6 +128,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--holdout-from", default=os.environ.get("TRIAL_LEDGER_HOLDOUT_FROM"))
     ap.add_argument("--agent", default=os.environ.get("TRIAL_LEDGER_AGENT"))
     ap.add_argument("--session", default=os.environ.get("TRIAL_LEDGER_SESSION"))
+    ap.add_argument("--tool-budget", type=int, default=None)
+    ap.add_argument("--research-only", action="store_true", help="hide accounting/report tools")
     ap.add_argument(
         "--hide-trial-ids",
         action="store_true",
@@ -136,8 +140,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> None:
-    service = build_service(parse_args(argv))
-    create_server(service).run()
+    args = parse_args(argv)
+    service = build_service(args)
+    create_server(service, research_only=args.research_only).run()
 
 
 if __name__ == "__main__":
