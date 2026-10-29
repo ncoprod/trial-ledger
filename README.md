@@ -128,6 +128,8 @@ override known mixed cohorts.
 For PBO, use `record_trial(returns, strategy=..., dataset_hash=..., period=...,
 periods_per_year=365)` from `trial_ledger`. It stores returns by default. Supply the
 same identity metadata; equal series lengths alone do not establish alignment.
+Run a `record_trial`-instrumented script directly with Python: it writes its ledger
+records itself. The exec wrapper below is for the `emit` example.
 
 ```bash
 trial-ledger exec -- python my_backtest.py

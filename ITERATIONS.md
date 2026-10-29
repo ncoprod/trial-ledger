@@ -823,3 +823,12 @@ native build, three Rust tests each, both wheels and the source archive containi
 59 full upstream notices. Refresh `causal-v2/review_verification.json` from the
 exact saved Actions metadata/log commands. Real failed-prefix coverage enters CI
 with this next raw checkpoint; no acceptance aggregation occurs yet.
+
+Complete Codex checkpoint `4a6ba60b` is pushed; Actions 40956120062 passes all
+seven jobs. The committed snapshot checks 139 corrected receipts: 33 cache/control
+replays, one failed cache-prefix audit and 105 CLI ledger audits, zero mismatches.
+Both native suites pass 137 Python and three Rust tests; both wheels and the
+source archive contain all 59 upstream notices. Commands and saved log checksum
+are recorded in `causal-v2/review_verification.json`. README capture guidance now
+clarifies direct `record_trial` versus emitted exec capture to avoid double counting.
+No partial acceptance estimates are published.
