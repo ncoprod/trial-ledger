@@ -13,6 +13,18 @@ from experiments.markets import (
     make_market,
     signflip_returns,
 )
+from trial_ledger.hashing import hash_array
+
+
+def test_garch_frozen_calibration_reproduces_original_market():
+    # Original market fingerprint from the committed GARCH seed-0 ledger.
+    import json
+    from pathlib import Path
+
+    path = Path("experiments/results/runs/random-search/garch-s0-r0/ledger/ledger.jsonl")
+    original = json.loads(path.read_text().splitlines()[0])
+    market, _, _ = make_market("garch", 0)
+    assert hash_array(market.returns) == original["dataset_hash"]
 
 
 def test_null_markets_are_deterministic_and_sized():

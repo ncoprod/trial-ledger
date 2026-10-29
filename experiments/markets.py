@@ -16,6 +16,7 @@ agent and 2024-01-01 onwards held out for out-of-sample evaluation.
 
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -26,6 +27,7 @@ import numpy as np
 from scipy import optimize, special
 
 from trial_ledger.backtest import Market
+from trial_ledger.hashing import hash_file
 
 DATA = Path(__file__).parent / "data" / "btcusdt_1d.csv"
 IS_START, IS_END, OOS_START = "2018-01-01", "2023-12-31", "2024-01-01"
@@ -107,6 +109,18 @@ def _garch_nll(theta: np.ndarray, r: np.ndarray) -> float:
 
 @lru_cache(maxsize=1)
 def fit_garch() -> GarchParams:
+    """Load the original fit; refitting floating-point optimizers is not portable.
+
+    The calibration is tied to the committed BTC source. Use ``estimate_garch`` to
+    refit explicitly; never change an existing experiment's market silently.
+    """
+    fit = json.loads(DATA.with_name("garch_fit.json").read_text())
+    if hash_file(DATA) != fit["btc_csv_sha256"]:
+        raise ValueError("BTC source differs from the frozen GARCH calibration")
+    return GarchParams(**fit["parameters"])
+
+
+def estimate_garch() -> GarchParams:
     r = btc_in_sample_returns()
     r = r - r.mean()
     v = r.var()
