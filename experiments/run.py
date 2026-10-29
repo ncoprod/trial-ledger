@@ -126,8 +126,7 @@ def _trial_fingerprint(run_dir) -> list[tuple[str, str]]:
 
 
 def cmd_replay_check(args) -> int:
-    """Replay every committed episode from the response cache (no API calls) into a temporary
-    directory and check that the agent makes exactly the same trials and submission."""
+    """Replay cached responses, audit failed prefixes and CLI ledgers without API calls."""
     import tempfile
     from pathlib import Path
 
@@ -193,18 +192,33 @@ def cmd_replay_check(args) -> int:
                 )
                 sub = e["model"].replace("/", "__")
             rid = e["run_id"]
+            status_matches = new["status"] == e["status"]
+            if e["status"].startswith("api_error:"):
+                # Success caches cannot recreate an outage: verify the exact prefix
+                # and the first missing response, without relabelling it a success.
+                status_matches = (
+                    new["status"] == "api_error: CacheMiss"
+                    and new["turns"] == e["turns"]
+                    and new["tool_calls"] == e["tool_calls"]
+                    and json.loads((path / "transcript.json").read_text())
+                    == json.loads((tmp / "runs" / sub / rid / "transcript.json").read_text())
+                )
             same = (
                 _trial_fingerprint(RESULTS / "runs" / sub / rid)
                 == _trial_fingerprint(tmp / "runs" / sub / rid)
                 and new["submission"] == e["submission"]
-                and new["status"] == e["status"]
+                and status_matches
             )
             bad += not same
             if not same:
                 print(f"MISMATCH {e['model']} {rid}", flush=True)
     cli = sum("-cli/" in e["model"] for e in eps)
+    failed_prefixes = sum(
+        e["status"].startswith("api_error:") and "-cli/" not in e["model"] for e in eps
+    )
     print(
-        f"checked {len(eps)} episodes: {len(eps) - cli} cache/baseline replays, "
+        f"checked {len(eps)} episodes: {len(eps) - cli - failed_prefixes} "
+        f"cache/baseline replays, {failed_prefixes} failed cache-prefix audits, "
         f"{cli} CLI ledger audits; {bad} mismatches"
     )
     return 1 if bad else 0

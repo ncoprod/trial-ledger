@@ -160,6 +160,8 @@ CARGO_BUILD_JOBS=2 cargo test --release --manifest-path rust/Cargo.toml
 Reproduction makes no inference calls: it replays committed NIM responses, audits
 CLI ledgers, re-evaluates logged specs against return hashes, and rebuilds tables,
 paired tests and figures. **Offline reproduction does not replay Codex inference.**
+Failed API attempts receive exact cache-prefix and missing-response boundary
+audits; provider outages themselves are not replayed.
 Frozen GARCH inputs preserve exact bytes across architectures; fitting parameters
 alone was insufficient because the Student-t sampler also differed across libm
 implementations. Failed fixes and commands are retained in [ITERATIONS.md](ITERATIONS.md).

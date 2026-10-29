@@ -764,3 +764,46 @@ the stated restricted-tool/search-count comparison; no unverifiable citation is
 added. Source-only draft commit precedes the final generated inputs and PDF.
 Publication lint: two initially overlong table-label strings shortened; final
 ruff check and format PASS (53 files).
+
+Paper provenance clarification: fresh corrected inference reuses frozen null-market
+seeds; it is not wholly new market data or an independent replication of the old
+version. The paper states that explicitly. The numerical manifest also records
+deterministic-generation settings and marks inference seed/revision as inapplicable.
+Two bibliography-only build retries (retaining intermediates and compiling with
+existing intermediates) still produce Tectonic 0.15.0's internal .bbl consistency
+warning. Both exit 0 and resolve all references; no source-level bibliography defect
+was found. Stop changing bibliography inputs to chase that engine warning. Logs:
+ignored `runs/paper-bib-smoke-keep.log`, `runs/paper-bib-smoke-existing.log`.
+
+Pushed checkpoints b759ad10 and 53ae244b: the full raw-evidence transport completed
+without changing main history; the temporary branch is deleted. Actions
+40950449242 at 53ae244b passes all seven jobs, including offline replay and both
+platform wheels with full notices. All corrected inference jobs continue.
+
+Failure replay iteration: the gpt-oss GARCH seed-2 request exhausts seven timeout
+retries. A new offline fixture reproduces a real publication problem: a provider
+RuntimeError becomes CacheMiss offline, despite the same cached evaluations.
+Initial regression FAIL (both parameter cases); ignored
+`runs/review-prefix-before.log`. Focused change: audit failed API attempts against
+the exact transcript, trial fingerprints, tool/turn counts and first missing
+response. Preserve the original failed status and exclude it from acceptance; do
+not claim to replay a provider outage. Tampered feedback still fails the audit.
+Command: `uv run --no-sync pytest tests/test_experiment.py -q`: 18 PASS; ruff
+check/format PASS. Full suite and real failed-prefix verification follow. The
+fixed sample is unchanged and failed attempts are never replaced.
+
+Failed-prefix verification outcome: full local suite 137 PASS. Real offline check
+`RAYON_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 uv run
+--no-sync python -m experiments.run replay-check`: 225 superseded ledgers integrity
+audited; 128 corrected episodes checked (32 cache/control replays, one failed
+cache-prefix audit, 95 CLI audits), zero mismatches. Raw output:
+ignored `runs/review-prefix-real.log` / `.exit`. The failed gpt-oss GARCH seed-2
+receipt retains 12 calls, 159 records, no claim or accepted pick.
+
+Scheduling diagnostic: considered moving the planned Nemotron batch ahead after
+the next fresh BTC request also timed out. Briefly stopped the gpt-oss process to
+check its unfinished prefix before any handoff. The zero-prefix assertion FAILed:
+23 new evaluations already existed, showing request progress had resumed. Sent
+SIGCONT immediately, kept the same process/episode and slot, and made no handoff,
+restart or trial deletion. No interruption receipt was written because the guard
+stopped before that mutation. The fixed sample and settings remain unchanged.

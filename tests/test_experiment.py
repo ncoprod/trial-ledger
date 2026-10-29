@@ -211,3 +211,61 @@ def test_summaries_and_paired_tests_refuse_failed_integrity(tmp_path, monkeypatc
         with pytest.raises(ValueError, match="unverified episode"):
             analyze.write_tables([row], [])
     assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("tamper_transcript", [False, True])
+def test_failed_provider_attempt_audits_exact_cached_prefix(
+    tmp_path, monkeypatch, capsys, tamper_transcript
+):
+    import json
+
+    from experiments import agent, llm, run
+    from trial_ledger.ledger import Ledger
+    from trial_ledger.service import BacktestService
+
+    results = tmp_path / "results"
+    monkeypatch.setattr(agent, "RESULTS", results)
+    monkeypatch.setattr(llm, "CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setattr(llm, "_CACHES", {})
+    model = "test-model"
+    client = llm.ChatClient(model)
+    market, _, _ = make_market("signflip", 0)
+    description = BacktestService(market, Ledger(tmp_path / "unused")).describe()
+    messages = [
+        {"role": "system", "content": agent.system_prompt(description)},
+        {"role": "user", "content": agent.USER_TASK},
+    ]
+    response = {
+        "message": {
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "fixture-call",
+                    "type": "function",
+                    "function": {
+                        "name": "run_backtest",
+                        "arguments": json.dumps({"strategy": {"family": "momentum"}}),
+                    },
+                }
+            ],
+        }
+    }
+    client.cache.put(client.request_key(messages, agent.TOOLS, "signflip-s0-r0"), response)
+    cached_chat = llm.ChatClient.chat
+
+    def outage_after_cached_response(self, messages, tools, salt):
+        if self.cache.get(self.request_key(messages, tools, salt)) is None:
+            raise RuntimeError("simulated provider outage")
+        return cached_chat(self, messages, tools, salt)
+
+    monkeypatch.setattr(llm.ChatClient, "chat", outage_after_cached_response)
+    episode = agent.run_episode(model, "signflip", 0)
+    assert episode["status"] == "api_error: RuntimeError" and episode["ledger_records"] == 1
+    monkeypatch.setattr(llm.ChatClient, "chat", cached_chat)
+    transcript = results / "runs/test-model/signflip-s0-r0/transcript.json"
+    if tamper_transcript:
+        messages = json.loads(transcript.read_text())
+        messages[-1]["content"] = "modified feedback"
+        transcript.write_text(json.dumps(messages))
+    assert run.cmd_replay_check(None) == int(tamper_transcript)
+    assert "failed cache-prefix audits" in capsys.readouterr().out

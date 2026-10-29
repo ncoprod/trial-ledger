@@ -356,6 +356,14 @@ def main():
         "git_commit": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
         ).strip(),
+        "config": {
+            "evaluation_version": "causal-v2",
+            "expected_attempts": len(expected),
+            "inputs": "committed HEAD blobs only",
+            "figure_dpi": 300,
+        },
+        "seed": None,
+        "model_revision": "not applicable; deterministic table generation",
         "input_sha256": SOURCES,
         "generated_sha256": {
             p.name: hashlib.sha256(p.read_bytes()).hexdigest()
