@@ -362,3 +362,16 @@ Verification milestone: full suite 108 PASS in 8.99 s; Actions 40853488417 PASS.
   strategy/return fingerprints against the completed episode before final analysis.
 - Current source: a634544a. No prompt, strategy space, threshold or held-out
   evaluation changes. Final sample remains fixed, with all failures retained.
+
+## Iteration 21 — preserve score decisions through CSV export
+
+- Hypothesis: six-significant-digit CSV formatting can change a strict acceptance
+  decision when figures/reporting reload a score close to 0.95. Full-precision
+  JSON and primary paired analysis were already unaffected.
+- Regression command: `uv run --no-sync pytest tests/test_experiment.py::test_csv_preserves_acceptance_boundary`.
+- Initial result: FAIL, 0.950000001 was exported/reloaded as 0.95.
+- Change: one-line float formatting change to shortest round-trip representation.
+  Display rounding remains in chart/report labels, after decisions are computed.
+- Re-run: experiment/paired tests plus ruff. Final artifact regeneration will use
+  the corrected CSV precision; no strategy or inference run is repeated.
+- Source: `experiments/analyze.py`, `tests/test_experiment.py`; final `episodes.csv`.

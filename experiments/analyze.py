@@ -236,7 +236,7 @@ def summarise(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _fmt(v: Any) -> Any:
     if isinstance(v, float):
-        return f"{v:.6g}"
+        return repr(v)
     if isinstance(v, tuple):
         return "[" + ", ".join(f"{x:.3f}" for x in v) + "]"
     return v

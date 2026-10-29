@@ -57,6 +57,21 @@ def test_blind_hides_trial_ids():
     assert blind(res) == {"sharpe_annualized": 1.0, "top": [{"x": 1}]}
 
 
+def test_csv_preserves_acceptance_boundary(tmp_path, monkeypatch):
+    import csv
+
+    from experiments import analyze
+
+    monkeypatch.setattr(analyze, "RESULTS", tmp_path)
+    row = {"psr0": 0.950000001, "dsr_claimed": 0.950000002, "dsr_ledger": 0.949999999}
+    analyze.write_tables([row], [{"episodes": 1}])
+    with (tmp_path / "episodes.csv").open() as stream:
+        restored = next(csv.DictReader(stream))
+    for key, value in row.items():
+        assert float(restored[key]) == value
+        assert (float(restored[key]) > analyze.THRESH) == (value > analyze.THRESH)
+
+
 @pytest.mark.parametrize("status", ["ok", "invalid_submission"])
 def test_invalid_submission_preserves_counts_without_substitute_pick(tmp_path, monkeypatch, status):
     import json
