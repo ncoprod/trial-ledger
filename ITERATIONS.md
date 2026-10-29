@@ -344,3 +344,21 @@ Verification milestone: full suite 108 PASS in 8.99 s; Actions 40853488417 PASS.
 - Result: PASS. This changes explanatory metadata, not scores, thresholds,
   prompts, candidates or held-out evaluations. Final paired output will include
   the caveat. Source: `experiments/paired_tests.py`, `provenance.py`, README.
+
+## Iteration 20 — resume after the machine reboot
+
+- Cause: the machine reboot killed background jobs; completed Codex and benchmark
+  work was already committed and remains unchanged. Stale mutexes were cleared
+  by the owner; new batches acquire the shared slots normally.
+- Check: `git status`, cached JSONL parsing and episode receipts show 15/20 new
+  gpt-oss episodes complete; Lightning/Ultra extensions had not started.
+- Change: preserve the interrupted gpt-oss GARCH seed-17 ledger (169 records) under
+  `experiments/results/attempts/reboot-checkpoints/garch-s17-r0/`, then resume all
+  three model batches with `--seeds 10-19 --markets signflip garch --btc-reps 0
+  --workers 1 --resume` and their original `--models` aliases. Logs and exit codes
+  are recorded in ignored `runs/nim-*-reboot.*`.
+- Result: cache JSONL valid; completed receipts are skipped. The incomplete prefix
+  is replayed from cache, not treated as a new independent selection. Verify its
+  strategy/return fingerprints against the completed episode before final analysis.
+- Current source: a634544a. No prompt, strategy space, threshold or held-out
+  evaluation changes. Final sample remains fixed, with all failures retained.
