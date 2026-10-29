@@ -506,3 +506,72 @@ staging the active Ultra batch. Source: `experiments/results/runs/nvidia__nemotr
 - Commands unchanged from the fixed plan; launch/exit logs are in ignored
   `runs/nim-*-fair.*`. Final aggregate analysis and full return-store audit follow
   from the complete raw-data checkpoint.
+
+## Final verification and stopping decision
+
+Source checkpoint: `7fd10ce8cce0fd7f9da95e6cfcb221931106d4f7`. Commands:
+`uv run --no-sync python -m experiments.store_returns`, then
+`uv run --no-sync python -m experiments.run reproduce`, with RAYON_NUM_THREADS=2,
+OPENBLAS_NUM_THREADS=1 and VECLIB_MAXIMUM_THREADS=1. Both exit 0.
+
+- Exact fixed set: 225 receipts; 221 valid final specifications, four invalid
+  submissions retained (two Codex, two gpt-oss). One valid legacy Lightning
+  final specification is outside its recorded search; this flag is retained,
+  and analysis evaluates the submitted spec rather than substituting a ledger pick.
+- Reproduction: 160 cache/baseline replays plus 65 CLI anchored-ledger audits;
+  zero mismatches. All 225 analyzed ledgers verify, with zero trial-return
+  re-evaluation mismatches. Every final artifact/episode provenance hash matches.
+- Return store: 225 ledgers, 35,108 distinct per-ledger trial series, 28,613 shared
+  compressed objects, 234,188,281 bytes. No missing object or noncanonical temporary
+  compressed object. Source: `experiments/results/returns_integrity.json`.
+- CSV exports retain the existing standard CRLF dialect. Plain `git diff --check`
+  flags those line endings; the check with `cr-at-eol` recognition passes.
+- All scored CSV values round-trip exactly to JSON values, including the strict
+  acceptance decision. A verification helper initially indexed missing scores
+  on invalid rows and raised KeyError; using the existing missing-score convention
+  corrected the helper, then the audit passed. No result was changed by that check.
+- Full native CI suite: 111 pytest and three cargo tests PASS at 7fd10ce8
+  (Actions 40930159172), versus the original 98 pytest / three cargo baseline.
+- All three final exported figures inspected; README local links resolve. Every
+  README empirical number links to its result artifact.
+
+| Target | Verified outcome | Evidence |
+|---|---|---|
+| CI green | All seven raw-data milestone jobs PASS; final documentation/results commit checked after push | Actions 40930159172 |
+| >=40 real coding-agent episodes | 65 Codex attempts, 63 valid; 60 null attempts/58 valid, five BTC; every ledger verified | `experiments/results/episodes.json` |
+| Wilson half-width <=10 pp | CLI naive 9.274912821 pp / DSR 3.105999845 pp; NIM naive 5.319482695 pp / DSR 2.247460607 pp | `experiments/results/paired_tests.json` |
+| Claimed-N versus ledger-N decisions | Zero discordance at 0.95 for every model; exact McNemar p=1; no NIM continuous-score Holm test rejects at 0.05 | `experiments/results/paired_tests.json` |
+| Conditions where N matters | Actual maximum 274/16=17.125x gives claimed DSR 0.7645027071 versus ledger 0.3331662428, both reject; controlled N=7 versus ledger N=30 crosses 0.95 | `experiments/results/episodes.json`, sensitivity in `paired_tests.json`, `tests/test_paired_tests.py` |
+| Committed-ledger PBO | Every stored trial return verifies; CLI PBO smoke passes in CI | `experiments/results/returns_integrity.json`, `pbo_cli_example.json` |
+| Rust output-checked benchmark | All outputs checked; all three native variants byte-identical; isolated original/final speedups 1.09-1.17x | `benchmarks/results/linux/kernel_interleaved.json` |
+| Portable wheels, no PyPI publication | Linux x86_64 and macOS arm64 wheels built, installed, parity-tested and retained as CI artifacts | Actions 40930159172 |
+
+Iteration outcomes that were pending in their original chronological entries:
+2: portable GARCH replay PASS; 5/9/15: full storage migration/audit PASS;
+7/11/14/16: isolated benchmark PASS, shared-M1 regressions/unstable timings retained;
+8/18/20: fixed sample complete with all outcomes retained; 12: full suite/CI PASS;
+17: two invalid NIM submissions handled without substitution; 19/21/22/25:
+full-precision, dependence-caveated final reporting regenerated and verified.
+23: one-second scheduling change did not obtain a slot before further transfers;
+24: both batches subsequently acquired slots, without a causal timing claim.
+
+Stopping rule (a): all research, storage, performance, documentation and licensing
+targets are met; stop after the final pushed main commit passes Actions.
+No prompt, strategy-space, seed or acceptance-threshold tuning used held-out BTC.
+The five Codex BTC candidates (three distinct specs) remain fixed; median Sharpe
+1.11503256061408 in sample versus 0.5682778598437503 held out, with every pick declining.
+Sources: `experiments/results/episodes.json` and README's linked result tables.
+
+The well-powered mixed result remains: NIM naive acceptance is 107/118 versus
+1/118 under either DSR; 51/120 claims under-report N, maximum 17.125x. Codex
+naive acceptance is 49/58 versus 0/58 under either DSR, with 0/60 under-reports.
+Count capture changes scores but adds no primary-threshold decision advantage
+over claimed N in this sample. Boundary sensitivity is exploratory, not a new
+headline threshold. Zero discordance does not establish equivalence.
+
+Claude Haiku remains skipped after its preserved OAuth refresh failure. Hosted
+weight revisions and the earliest CLI pilot's exact launch/source metadata remain
+explicitly unknown. Provider connection/time-out/500 errors recovered; no terminal
+API-error episode is dropped. Reboot and maintenance prefixes (169 and 359
+strategy/return fingerprints) matched their resumed episodes exactly. All owned
+NIM slots were released; foreign locks were never removed.

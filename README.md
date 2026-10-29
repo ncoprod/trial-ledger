@@ -4,6 +4,8 @@
 
 **65 real Codex CLI episodes** (`gpt-6.1-sol`, medium reasoning): on zero-alpha markets, naive PSR accepts **49/58** valid picks, while ledger-N DSR accepts **0/58**. Both rates meet the Wilson precision target. [2 invalid null submissions are retained](experiments/results/episodes.json); [paired results](experiments/results/paired_tests.json).
 
+The NIM replication has **107/118 naive passes** versus **1/118 DSR passes**; **51/120 claims under-report N** (maximum **17.125×**). Claimed-N and ledger-N DSR make the same primary decisions. [paired results](experiments/results/paired_tests.json).
+
 The Rust CSCV kernel is **182–1,135× faster than pypbo** on the memory-feasible isolated Linux cases, with checked outputs. [Benchmark and conditions](benchmarks/results/linux/pbo_benchmark.json).
 
 `trial-ledger` captures backtests through MCP, shell hooks or an exec wrapper, stores
@@ -38,12 +40,10 @@ hooks configured. Its scored evaluations use MCP; its shell hook is smoke-tested
 live. Both search predefined rule families, rather than arbitrary strategy code.
 [Protocol](experiments/PROTOCOL.md).
 
-| Subject | Null attempts (valid picks) | Naive PSR passes [Wilson 95% CI] | Claimed-N DSR passes | Ledger-N DSR passes [Wilson 95% CI] | Under-reported N | Source |
+| Subject | Null attempts (valid picks) | Naive PSR passes [Wilson 95% CI] | Claimed-N DSR passes | Ledger-N DSR passes [Wilson 95% CI] | Under-reported N [Wilson 95% CI] | Source |
 |---|---:|---|---:|---|---:|---|
-| Codex CLI | 60 (58) | 49/58 [73.07%, 91.62%] | 0/58 | 0/58 [0.00%, 6.21%] | 0/60 | [JSON](experiments/results/paired_tests.json) |
-| NIM tool loops | 80 (78) | 68/78 [77.98%, 92.88%] | 1/78 | 1/78 [0.23%, 6.91%] | 32/80 | [JSON](experiments/results/paired_tests.json) |
-
-**Interim snapshot:** the fixed NIM extension is still running. All completed outcomes are retained; the final sample plan is in [PROTOCOL.md](experiments/PROTOCOL.md).
+| Codex CLI | 60 (58) | 49/58 [73.07%, 91.62%] | 0/58 | 0/58 [0.00%, 6.21%] | 0/60 [0.00%, 6.02%] | [JSON](experiments/results/paired_tests.json) |
+| NIM tool loops | 120 (118) | 107/118 [84.08%, 94.71%] | 1/118 | 1/118 [0.15%, 4.64%] | 51/120 [34.02%, 51.44%] | [JSON](experiments/results/paired_tests.json) |
 
 Acceptance rates describe valid completed null-market picks; failures remain in
 the attempt accounting and are never replaced with a best ledger trial. Trial-count
@@ -58,6 +58,10 @@ percentile bootstrap collapses to zero; retain the Wilson upper bound.
 At the fixed acceptance threshold, **claimed N and ledger N change no decisions** in either cohort; every model-specific exact McNemar p-value is 1.0. This does not establish equivalence. Codex has no observed under-reporting of distinct trials; the NIM counts and continuous-score Wilcoxon tests with Holm correction are in [paired results](experiments/results/paired_tests.json).
 
 **When can N change a decision?** In the retained Codex GARCH seed 10 pick, ledger N = 30 gives DSR = 0.7341. Replacing it with a **hypothetical** claim of N = 7 gives DSR = 0.9613, crossing the primary threshold. The agent actually claimed N = 30. Observed score-boundary intervals and a controlled regression test are also provided: [sensitivity results](experiments/results/paired_tests.json), [test](tests/test_paired_tests.py). These are conditions for a possible effect, not additional observed false acceptances.
+
+In the largest observed under-report (Nemotron Ultra, GARCH seed 17), the claim of
+16 against ledger N = 274 gives DSR 0.7645 with claimed N versus 0.3332 with ledger N:
+both reject. [Episode metrics](experiments/results/episodes.json).
 
 The count is auditable even when it does not change a verdict. The DSR still uses
 an estimated cross-sectional Sharpe variance and correlated trial counts; it does
@@ -109,7 +113,7 @@ trial-ledger --dir experiments/results/runs/openai__gpt-oss-20b/signflip-s0-r0/l
 trial-ledger --dir experiments/results/runs/openai__gpt-oss-20b/signflip-s0-r0/ledger pbo
 ```
 
-The latest restoration snapshot verifies **185 ledgers** and **26,157 distinct per-ledger trial series**, with **22,253 shared compressed objects**. [Integrity receipt and command](experiments/results/returns_integrity.json). The CLI reads these objects directly; [a recorded PBO result](experiments/results/pbo_cli_example.json) is committed alongside the ledgers.
+The latest restoration snapshot verifies **225 ledgers** and **35,108 distinct per-ledger trial series**, with **28,613 shared compressed objects**. [Integrity receipt and command](experiments/results/returns_integrity.json). The CLI reads these objects directly; [a recorded PBO result](experiments/results/pbo_cli_example.json) is committed alongside the ledgers.
 
 Return objects are compressed and addressed by the SHA-256 of canonical float64
 content; loading verifies decompressed bytes. Old uncompressed objects remain
@@ -219,6 +223,9 @@ Nothing is published to PyPI.
 - Ledger N deduplicates identical returns. Related trials remain correlated, and
   effective N is only a heuristic. The DSR's estimated Sharpe dispersion can be
   too small; count capture does not solve that statistical assumption.
+- A valid final specification can lie outside the recorded search; this is flagged
+  in [episode metrics](experiments/results/episodes.json). Analysis scores that
+  submitted specification and never substitutes the best logged trial.
 - CSCV conditions on the logged trial universe. The agent formed that universe
   using the whole research window; its search is not rerun within each fold,
   which limits claims about end-to-end generalisation.

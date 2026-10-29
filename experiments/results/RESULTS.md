@@ -6,19 +6,21 @@ Pass = statistic > 0.95. Every pass is a false discovery: alpha is zero by const
 
 Ledger N = distinct return series logged (re-runs of the same configuration count once). Under-reported = the agent claimed fewer strategies than ledger N.
 
-| agent | episodes | median evaluations logged | median ledger N | median N claimed | under-reported | ledger N / claimed (median, max) | median in-sample Sharpe of pick | claims Sharpe >= 1 | naive PSR pass [95% CI] | DSR (claimed N) pass | DSR (ledger N) pass [95% CI] | median DSR (claimed N, ledger N) | median PBO |
+Acceptance rates use valid picks; count accuracy uses all positive claims.
+
+| agent | attempts (valid picks) | median evaluations logged | median ledger N | median N claimed | under-reported | ledger N / claimed (median, max) | median in-sample Sharpe of pick | claims Sharpe >= 1 | naive PSR pass [95% CI] | DSR (claimed N) pass | DSR (ledger N) pass [95% CI] | median DSR (claimed N, ledger N) | median PBO |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| gpt-6.1-sol | 60 | 30 | 30 | 30 | 0% | 1.00, 1.00 | 0.87 | 21% | 84% [73, 92] | 0% | 0% [0, 6] | 0.46, 0.46 | 0.56 |
-| nemotron-3-ultra-550b-a55b | 20 | 322 | 266 | 316 | 20% | 0.90, 1.16 | 1.01 | 55% | 95% [76, 99] | 0% | 0% [0, 16] | 0.27, 0.27 | 0.59 |
-| nemotron-3.5-lightning-30b-a3b | 20 | 210 | 168 | 151 | 40% | 0.99, 4.40 | 0.91 | 45% | 75% [53, 89] | 0% | 0% [0, 16] | 0.38, 0.31 | 0.58 |
-| gpt-oss-20b | 40 | 229 | 176 | 142 | 50% | 1.01, 9.69 | 0.86 | 24% | 89% [76, 96] | 3% | 3% [0, 13] | 0.38, 0.28 | 0.49 |
-| random-search | 20 | 174 | 133 | 174 | 0% | 0.84, 0.94 | 0.77 | 10% | 80% [58, 92] | 0% | 0% [0, 16] | 0.33, 0.35 | 0.52 |
+| gpt-6.1-sol | 60 (58) | 30 | 30 | 30 | 0% | 1.00, 1.00 | 0.87 | 21% | 84% [73, 92] | 0% | 0% [0, 6] | 0.46, 0.46 | 0.56 |
+| nemotron-3-ultra-550b-a55b | 40 (40) | 340 | 280 | 284 | 30% | 0.92, 17.12 | 1.01 | 55% | 98% [87, 100] | 0% | 0% [0, 9] | 0.27, 0.29 | 0.53 |
+| nemotron-3.5-lightning-30b-a3b | 40 (40) | 194 | 150 | 98 | 48% | 1.00, 9.07 | 0.91 | 38% | 85% [71, 93] | 0% | 0% [0, 9] | 0.38, 0.30 | 0.51 |
+| gpt-oss-20b | 40 (38) | 229 | 176 | 142 | 50% | 1.01, 9.69 | 0.86 | 24% | 89% [76, 96] | 3% | 3% [0, 13] | 0.38, 0.28 | 0.49 |
+| random-search | 20 (20) | 174 | 133 | 174 | 0% | 0.84, 0.94 | 0.77 | 10% | 80% [58, 92] | 0% | 0% [0, 16] | 0.33, 0.35 | 0.52 |
 
-Valid LLM null-market picks: n = 136; claimed Sharpe >= 1 in 30%; naive PSR pass 117/136 = 86% [79, 91]; DSR (claimed N) pass 1%; DSR (ledger N) pass 1/136 = 1% [0, 4].
+Valid LLM null-market picks: n = 176; claimed Sharpe >= 1 in 33%; naive PSR pass 156/176 = 89% [83, 93]; DSR (claimed N) pass 1%; DSR (ledger N) pass 1/176 = 1% [0, 3].
 
-Among these valid picks, ledger N / claimed N: median 1.00, max 9.69, > 1 (under-reported) in 23% of episodes. Counting every logged evaluation including re-runs: median 1.00, max 12.38, > 1 in 42%.
+Among these valid picks, ledger N / claimed N: median 1.00, max 17.12, > 1 (under-reported) in 28% of episodes. Counting every logged evaluation including re-runs: median 1.00, max 17.81, > 1 in 49%.
 
-Severe under-reporting (ledger N >= 3x claimed N): 11 of 136 episodes (gpt-oss-20b: 8, nemotron-3.5-lightning-30b-a3b: 3); in 8 of them the claimed N equals the number of tool calls made.
+Severe under-reporting (ledger N >= 3x claimed N): 22 of 176 episodes (gpt-oss-20b: 8, nemotron-3-ultra-550b-a55b: 1, nemotron-3.5-lightning-30b-a3b: 13); in 16 of them the claimed N equals the number of tool calls made.
 
 ## BTCUSDT (in-sample 2018-01-01..2023-12-31, out-of-sample 2024-01-01..2026-09-30)
 
@@ -72,25 +74,25 @@ Per-episode picks:
 
 - ledgers verified (hash chain + anchored head): True
 - trials whose returns hash did not match a re-run from the logged spec: 0
-- episodes: 185; with a valid submitted strategy: 181; submitted strategy found in the agent's own ledger: 180
+- episodes: 225; with a valid submitted strategy: 221; submitted strategy found in the agent's own ledger: 220
 
 ## CLI subjects and paired N tests
 
 Full-precision results and protocol: [paired_tests.json](paired_tests.json); [provenance.json](provenance.json). Threshold stays fixed at 0.95.
 
-| cohort | valid null picks | naive passes | ledger-N DSR passes | under-reported / usable claims |
+| cohort | valid null picks | naive passes | ledger-N DSR passes | under-reported / usable claims [95% CI] |
 |---|---|---|---|---|
-| nim | 78 | 68 | 1 | 32/80 |
-| cli | 58 | 49 | 0 | 0/60 |
+| nim | 118 | 107 | 1 | 51/120 [34, 51] |
+| cli | 58 | 49 | 0 | 0/60 [0, 6] |
 
 Acceptance uses valid picks; count accuracy uses all available positive claims.
 
 | model | paired episodes | claimed-only pass | ledger-only pass | exact McNemar p | median DSR(claimed)-DSR(ledger) | Wilcoxon Holm p |
 |---|---|---|---|---|---|---|
-| codex-cli/gpt-6.1-sol | 58 | 0 | 0 | 1 | 0 | 0.05388 |
-| nvidia/nemotron-3-ultra-550b-a55b | 20 | 0 | 0 | 1 | -0.01253 | 0.02876 |
-| nvidia/nemotron-3.5-lightning-30b-a3b | 20 | 0 | 0 | 1 | -0.0008799 | 0.6475 |
-| openai/gpt-oss-20b | 38 | 0 | 0 | 1 | 0.000534 | 0.4145 |
+| codex-cli/gpt-6.1-sol | 58 | 0 | 0 | 1 | 0 | 0.07184 |
+| nvidia/nemotron-3-ultra-550b-a55b | 40 | 0 | 0 | 1 | -0.007009 | 0.3007 |
+| nvidia/nemotron-3.5-lightning-30b-a3b | 40 | 0 | 0 | 1 | 0 | 0.08353 |
+| openai/gpt-oss-20b | 38 | 0 | 0 | 1 | 0.000534 | 0.3007 |
 | random-search | 20 | 0 | 0 | 1 | -0.02449 | 0.0004429 |
 
 Incomplete/invalid episode receipts retained: 4. They are not replaced with the best logged strategy. Authentication and startup pilots are retained separately in `attempts/`.
