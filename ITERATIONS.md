@@ -832,3 +832,18 @@ source archive contain all 59 upstream notices. Commands and saved log checksum
 are recorded in `causal-v2/review_verification.json`. README capture guidance now
 clarifies direct `record_trial` versus emitted exec capture to avoid double counting.
 No partial acceptance estimates are published.
+
+Paper method audit: explicitly state the 365-period annualization convention
+and distinguish descriptive annualized Sharpe from the daily PSR/DSR input.
+Checked against `experiments/markets.py`, `run_backtest` and the committed
+null-ledger metadata (`periods_per_year=365`, `n_obs=2190`). This is a prose
+clarification; no evaluation, prompt, seed or inference setting changes.
+
+Raw NIM midpoint checkpoint: 158 completed receipts (105 Codex, 28 gpt-oss,
+25 controls), including the retained provider failure. All 12,196 distinct
+per-ledger series verify against their anchored ledgers; 11,844 referenced shared
+objects are staged. Command: `uv run --no-sync python -m experiments.store_returns`
+(exit 0), then `uv run --no-sync python -m runs.stage_review_raw`. No objects needed
+restoration. Partial store-count receipts and acceptance aggregates are excluded.
+Transient malformed-response TypeErrors subsequently recover through the unchanged
+retry policy; no extra episode or replacement seed is introduced.
