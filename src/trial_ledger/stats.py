@@ -305,13 +305,16 @@ def purged_kfold(
     Sample ``i`` is assumed to have a label that depends on observations ``[i, i + label_horizon]``.
     For each contiguous test fold ``[a, b)``:
 
-    * purging removes training samples whose label window overlaps the test fold, i.e. samples
-      ``i`` in ``[a - label_horizon, a)``;
-    * the embargo additionally removes ``embargo`` samples right after the test fold,
-      ``[b, b + embargo)`` (``embargo`` may be given as a fraction of ``n_obs``).
+    * purging removes every training label intersecting the test labels' union
+      ``[a, b - 1 + label_horizon]``, including both boundaries;
+    * embargo removes another ``embargo`` sample starts after that union, i.e.
+      ``[b + label_horizon, b + label_horizon + embargo)``. A fraction of ``n_obs``
+      is rounded up.
     """
-    if n_splits < 2:
-        raise ValueError("n_splits must be >= 2")
+    if not 2 <= n_splits <= n_obs:
+        raise ValueError("n_splits must be between 2 and n_obs")
+    if label_horizon < 0 or embargo < 0:
+        raise ValueError("label_horizon and embargo must be nonnegative")
     if isinstance(embargo, float) and embargo < 1:
         emb = math.ceil(embargo * n_obs)
     else:
@@ -320,7 +323,7 @@ def purged_kfold(
     for test in np.array_split(idx, n_splits):
         a, b = int(test[0]), int(test[-1]) + 1
         lo = max(0, a - label_horizon)
-        hi = min(n_obs, b + emb)
+        hi = min(n_obs, b + label_horizon + emb)
         mask = np.ones(n_obs, dtype=bool)
         mask[lo:hi] = False
         yield idx[mask], test

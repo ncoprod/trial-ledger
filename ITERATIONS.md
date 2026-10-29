@@ -575,3 +575,40 @@ explicitly unknown. Provider connection/time-out/500 errors recovered; no termin
 API-error episode is dropped. Reboot and maintenance prefixes (169 and 359
 strategy/return fingerprints) matched their resumed episodes exactly. All owned
 NIM slots were released; foreign locks were never removed.
+
+
+## Independent review remediation (causal-v2)
+
+Review intake at 94196b21: all eight findings accepted. The untracked review is
+excluded locally and will never be staged. Previous completion claims do not
+survive the newly demonstrated sizing defect. The old artifacts are superseded,
+not deleted, relabelled as fresh searches or silently rescored.
+
+Fixed plan before inference: `experiments/PROTOCOL.md`, 265 corrected episodes.
+No outcome-based stopping or tuning; no untouched-BTC-test claim. Two evaluation
+versions and every logged strategy trial are disclosed; the defective first
+version is not a candidate eligible for headline selection.
+
+| Item | Hypothesis and focused change | Verification / outcome | Fix commit |
+|---|---|---|---|
+| B1 future sizing | Fixed 0.02 per-period target; lagged rolling denominator; fresh searches in causal-v2 | Full positions/returns, research append invariance and OOS-prefix perturbation regressions; initial focused run exposed an unrelated guard-order test failure, corrected before rerun | pending |
+| M2 purge boundaries | Purge both label-interval boundaries, then embargo after their union | All-pairs interval intersections, zero/short embargo | pending |
+| M3 collapsed emissions | Deduplicate only proven equal return hashes within a coherent cohort; otherwise each scored evaluation counts | Actual emit/exec regression with changed script content, scores and repeated metadata | pending |
+| M4 mixed cohorts | Require dataset/time-axis/frequency/length identity; no majority-length selection; explicit legacy alignment assertion remains labelled | Mixed dataset, date axis, frequency and length rejection tests | pending |
+| M5 failed verification | Abort analysis/public report on chain/replay failure; stop reproduce before any writes | Corrupted score, return hash, anchored tail, and no-publication regressions | pending |
+| M6 native licences | Collect locked dependency notices, package wheel/sdist bundles, inspect both CI artifacts | pending | pending |
+| m7 window boundaries | Initial equity included in drawdown; slice actual full-history turnover | First OOS loss and unchanged holdings regression | pending |
+| m8 unused cache | Delete unused returns_by_seq and its numpy import | Existing MCP/service tests | pending |
+
+Core commands: `RAYON_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1
+uv run --no-sync pytest tests/test_backtest.py tests/test_stats.py
+tests/test_cli_hooks.py tests/test_experiment.py tests/test_service_mcp.py -q`;
+`uv run --no-sync ruff check .`; `uv run --no-sync ruff format --check .`.
+First result: 105 focused tests pass, one new integrity-guard test fails because
+summary grouping preceded its guard. Move the guard before grouping; rerun below.
+Raw diagnostics: ignored `runs/review-core-tests.log`.
+
+Core rerun outcome: all 133 tests PASS; ruff check/format PASS. Frozen GARCH
+archive extended from 30 to 50 seeds, with all original 30 series hashes unchanged.
+No corrected inference or selection has occurred before this protocol snapshot.
+Missing-return effective-N estimates also refuse partial-universe estimation.

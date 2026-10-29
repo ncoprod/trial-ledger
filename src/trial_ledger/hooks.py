@@ -109,7 +109,11 @@ def coerce_trial(payload: dict[str, Any]) -> dict[str, Any]:
     dataset_hash = t.pop("dataset_hash", None)
     if dataset_hash is not None and not isinstance(dataset_hash, str):
         raise TypeError("dataset_hash must be a string")
+    period = t.pop("period", None)
+    if period is not None and not isinstance(period, dict):
+        raise TypeError("period must be an object")
     return {
+        "period": period,
         "sharpe": sharpe,
         "n_obs": n_obs,
         "strategy": strategy,
@@ -148,6 +152,7 @@ def append_trials(
                 session_id=session_id,
                 code_hash=code_hash,
                 dataset_hash=c["dataset_hash"],
+                period=c["period"],
                 extra={**c["extra"], **base_extra},
             )
         except Exception as exc:

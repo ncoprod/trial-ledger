@@ -35,11 +35,11 @@ def test_no_lookahead(market, spec):
     r2 = market.returns.copy()
     r2[cut + 1 :] = np.random.default_rng(1).standard_normal(r2.size - cut - 1)
     pos2 = signal(spec, Market("t2", r2))
-    # vol_target uses a full-sample median as its target level, so compare signs only there
-    if spec.get("vol_target"):
-        np.testing.assert_array_equal(np.sign(pos[: cut + 1]), np.sign(pos2[: cut + 1]))
-    else:
-        np.testing.assert_array_equal(pos[: cut + 1], pos2[: cut + 1])
+    np.testing.assert_array_equal(pos[: cut + 1], pos2[: cut + 1])
+    changed = Market("t2", r2, fee_bps=market.fee_bps)
+    np.testing.assert_array_equal(
+        strategy_returns(spec, market)[:cut], strategy_returns(spec, changed)[:cut]
+    )
 
 
 @pytest.mark.parametrize("spec", SPECS)
@@ -107,3 +107,27 @@ def test_eval_from_uses_warmup(market):
     oos = run_backtest({"family": "momentum", "lookback": 50}, market, eval_from=1000)
     np.testing.assert_allclose(oos.returns, full.returns[999:])
     assert oos.n_obs == market.returns.size - 1000
+
+
+@pytest.mark.parametrize("spec", [{**s, "vol_target": True} for s in SPECS])
+def test_oos_prefix_and_research_returns_do_not_use_future(market, spec):
+    split, prefix = 900, 200
+    altered = market.returns.copy()
+    altered[split + prefix :] *= 3
+    changed = Market("changed", altered, fee_bps=market.fee_bps)
+    np.testing.assert_array_equal(
+        run_backtest(spec, market).returns[: split - 1],
+        run_backtest(spec, market.slice(0, split)).returns,
+    )
+    np.testing.assert_array_equal(
+        run_backtest(spec, market, eval_from=split).returns[:prefix],
+        run_backtest(spec, changed, eval_from=split).returns[:prefix],
+    )
+
+
+def test_window_drawdown_includes_initial_equity_and_actual_turnover():
+    market = Market("boundary", np.array([0, 0.1, 0.1, -0.1, 0, 0]), fee_bps=0)
+    result = run_backtest({"family": "momentum", "lookback": 2}, market, eval_from=3)
+    np.testing.assert_allclose(result.returns, [-0.1, 0, 0])
+    assert result.max_drawdown == pytest.approx(0.1)
+    assert result.turnover == pytest.approx(2 / 3)

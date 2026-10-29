@@ -8,9 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
-
 from .backtest import ENGINE_CODE_HASH, FAMILIES, Market, expand_grid, normalise_spec, run_backtest
+from .hashing import hash_json
 from .ledger import Ledger
 from .report import build_report
 
@@ -41,12 +40,11 @@ class BacktestService:
         self.expose_trial_ids = expose_trial_ids
         self.n_calls = 0
         self.tool_budget = tool_budget
-        self.returns_by_seq: dict[int, np.ndarray] = {}
 
     # ------------------------------------------------------------------ helpers
     def _period(self) -> dict[str, Any] | None:
         d = self.market.dates
-        return {"start": d[1], "end": d[-1]} if d else None
+        return {"start": d[1], "end": d[-1], "time_axis_hash": hash_json(d[1:])} if d else None
 
     def _evaluate(self, spec: dict[str, Any], via: str) -> dict[str, Any]:
         res = run_backtest(spec, self.market)
@@ -63,7 +61,6 @@ class BacktestService:
             extra={"tool": via, "dataset": self.market.name},
             store_returns=self.store_returns,
         )
-        self.returns_by_seq[rec["seq"]] = res.returns
         out = {"trial": rec["seq"]} if self.expose_trial_ids else {}
         return {**out, "strategy": res.spec, **res.summary()}
 

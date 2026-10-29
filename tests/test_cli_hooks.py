@@ -15,7 +15,13 @@ def noisy_ledger(tmp_path):
     lg = Ledger(tmp_path / "tl")
     rng = np.random.default_rng(0)
     for i in range(40):
-        lg.append(strategy={"i": i}, returns=rng.standard_normal(800) * 0.01, periods_per_year=365)
+        lg.append(
+            strategy={"i": i},
+            returns=rng.standard_normal(800) * 0.01,
+            periods_per_year=365,
+            dataset_hash="data",
+            period={"start": "0", "end": "799", "time_axis_hash": "axis"},
+        )
     return lg
 
 
@@ -34,7 +40,7 @@ def test_report_dedups_identical_reruns(tmp_path):
     for _ in range(3):
         lg.append(strategy={"same": True}, returns=r)
     lg.append(strategy={"other": True}, returns=r[::-1].copy())
-    rep = build_report(lg)
+    rep = build_report(lg, assume_aligned=True)
     assert rep.n_records == 4 and rep.n_trials == 2
 
 
@@ -44,7 +50,14 @@ def test_report_refuses_pbo_from_partial_trial_universe(noisy_ledger, missing):
         record = noisy_ledger.records()[0]
         (noisy_ledger.returns_dir / f"{record['returns_hash']}.npz").unlink()
     else:
-        noisy_ledger.append(strategy={"missing": True}, sharpe=0.1, n_obs=800)
+        noisy_ledger.append(
+            strategy={"missing": True},
+            sharpe=0.1,
+            n_obs=800,
+            periods_per_year=365,
+            dataset_hash="data",
+            period={"start": "0", "end": "799", "time_axis_hash": "axis"},
+        )
     report = build_report(noisy_ledger)
     assert report.pbo is None
     assert report.pbo_n_trials is None
@@ -56,10 +69,10 @@ def test_report_counts_unscored_runs(tmp_path):
     rng = np.random.default_rng(2)
     lg.append(strategy={"a": 1}, returns=rng.standard_normal(300))
     lg.append(strategy={"b": 1}, returns=rng.standard_normal(300))
-    base = build_report(lg).dsr_ledger
+    base = build_report(lg, assume_aligned=True).dsr_ledger
     for _ in range(20):
         lg.append(extra={"unscored": True})
-    rep = build_report(lg)
+    rep = build_report(lg, assume_aligned=True)
     assert rep.n_unscored == 20
     assert rep.dsr_ledger < base
 
@@ -192,7 +205,7 @@ def test_hook_fails_closed_on_malformed_trials(tmp_path):
     assert len(written) == N_ATTEMPTS
     _check_mixed(lg.records())
     assert lg.verify().ok
-    rep = build_report(lg)
+    rep = build_report(lg, assume_aligned=True)
     assert rep.n_trials == N_GOOD and rep.n_unscored == N_ATTEMPTS - N_GOOD
 
 
@@ -326,3 +339,72 @@ def test_1mb_command_is_handled_fast(name, monkeypatch):
     hooks.code_hash_for_command(text)
     assert time.process_time() - t0 < 0.1
     assert len(fields["command_preview"]) <= hooks.PREVIEW_CHARS + 4
+
+
+def test_exec_keeps_scored_runs_with_changed_code_and_no_return_hash(tmp_path):
+    script = tmp_path / "backtest.py"
+    directory = str(tmp_path / "ledger")
+    for score in (0.01, 0.20):
+        script.write_text(
+            f"from trial_ledger import emit\nemit({score}, 1000, {{'lookback': 20}})\n"
+        )
+        assert cli.main(["--dir", directory, "exec", "--", sys.executable, str(script)]) == 0
+    ledger = Ledger(directory)
+    records = ledger.records()
+    assert records[0]["code_hash"] != records[1]["code_hash"]
+    report = build_report(ledger, assume_aligned=True)
+    assert report.n_trials == 2 and report.best_sharpe == 0.20
+    # Even identical score/strategy without returns is not evidence of an identical evaluation.
+    cli.main(["--dir", directory, "exec", "--", sys.executable, str(script)])
+    assert build_report(ledger, assume_aligned=True).n_trials == 3
+
+
+@pytest.mark.parametrize(
+    "field, second",
+    [
+        ("dataset_hash", "different"),
+        ("period", {"start": "2021", "end": "2022", "time_axis_hash": "different"}),
+        ("periods_per_year", 24 * 365),
+        ("n_obs", 101),
+    ],
+)
+def test_report_and_pbo_reject_incompatible_cohorts(tmp_path, field, second):
+    from trial_ledger.report import pbo_from_ledger
+
+    ledger = Ledger(tmp_path)
+    kwargs = dict(
+        dataset_hash="same",
+        periods_per_year=365,
+        period={"start": "2020", "end": "2021", "time_axis_hash": "axis"},
+    )
+    ledger.append(returns=np.arange(100, dtype=float), **kwargs)
+    if field == "n_obs":
+        returns = np.arange(second, dtype=float)
+    else:
+        kwargs[field] = second
+        returns = np.arange(100, dtype=float)[::-1]
+    ledger.append(returns=returns, **kwargs)
+    with pytest.raises(ValueError, match="incompatible evaluation cohorts"):
+        build_report(ledger)
+    with pytest.raises(ValueError, match="incompatible evaluation cohorts"):
+        pbo_from_ledger(ledger, ledger.records())
+
+
+def test_missing_time_axis_requires_explicit_assertion(tmp_path):
+    ledger = Ledger(tmp_path)
+    ledger.append(returns=np.arange(100, dtype=float))
+    with pytest.raises(ValueError, match="lacks dataset/time-axis"):
+        build_report(ledger)
+    assert build_report(ledger, assume_aligned=True).n_trials == 1
+
+
+def test_public_report_refuses_modified_chain(noisy_ledger, capsys):
+    records = noisy_ledger.path.read_text().splitlines()
+    record = json.loads(records[0])
+    record["sharpe"] = 10
+    records[0] = json.dumps(record)
+    noisy_ledger.path.write_text("\n".join(records) + "\n")
+    with pytest.raises(ValueError, match="verification failed"):
+        build_report(noisy_ledger)
+    assert cli.main(["--dir", str(noisy_ledger.dir), "report", "--json"]) == 1
+    assert not capsys.readouterr().out

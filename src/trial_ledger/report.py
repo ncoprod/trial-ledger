@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 
+from .hashing import hash_json
 from .ledger import Ledger
 from .stats import (
     annualise_sharpe,
@@ -55,22 +56,48 @@ def _is_scored(r: dict[str, Any]) -> bool:
 
 
 def _distinct(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
-    seen: set[str] = set()
+    seen: set[tuple] = set()
     out = []
     for r in records:
         if not _is_scored(r):
             continue
-        key = r.get("returns_hash") or f"{r.get('strategy_hash')}|{r.get('dataset_hash')}"
-        if key in seen:
-            continue
-        seen.add(key)
+        h = r.get("returns_hash")
+        if h:
+            key = (h, r.get("dataset_hash"), hash_json(r.get("period")), r.get("periods_per_year"))
+            if key in seen:
+                continue
+            seen.add(key)
         out.append(r)
     return out
 
 
+def _check_cohort(trials: list[dict[str, Any]], assume_aligned: bool = False) -> None:
+    """Equal lengths alone do not establish contemporaneous observations."""
+    keys = set()
+    for r in trials:
+        period = r.get("period") or {}
+        if not assume_aligned and not (r.get("dataset_hash") and period.get("time_axis_hash")):
+            raise ValueError(
+                "evaluation cohort lacks dataset/time-axis identity; provide metadata "
+                "or explicitly assert alignment with --assume-aligned"
+            )
+        keys.add(
+            (r.get("dataset_hash"), hash_json(period), r.get("n_obs"), r.get("periods_per_year"))
+        )
+    if len(keys) > 1:
+        raise ValueError(
+            "incompatible evaluation cohorts: select one dataset, time axis and frequency"
+        )
+
+
 def pbo_from_ledger(
-    ledger: Ledger, trials: list[dict[str, Any]], n_partitions: int = 16
+    ledger: Ledger,
+    trials: list[dict[str, Any]],
+    n_partitions: int = 16,
+    *,
+    assume_aligned: bool = False,
 ) -> tuple[float | None, int | None, str | None]:
+    _check_cohort(trials, assume_aligned)
     series = []
     missing = 0
     for r in trials:
@@ -87,16 +114,11 @@ def pbo_from_ledger(
         )
     if len(series) < 2:
         return None, None, "fewer than 2 trials with stored return series"
-    lengths = {len(s) for s in series}
-    if len(lengths) != 1:
-        # keep the most common length (trials evaluated on the same period)
-        common = max(lengths, key=lambda n: sum(len(s) == n for s in series))
-        series = [s for s in series if len(s) == common]
-        note = f"PBO over the {len(series)} trials sharing the most common length {common}"
-    else:
-        note = None
-    if len(series) < 2:
-        return None, None, "fewer than 2 trials share a common period"
+    if len({len(s) for s in series}) != 1:
+        raise ValueError("incompatible return lengths; no trials may be silently discarded")
+    note = (
+        "caller asserted alignment without complete time-axis metadata" if assume_aligned else None
+    )
     m = np.column_stack(series)
     s = n_partitions
     while s > 2 and m.shape[0] // s < 4:
@@ -121,8 +143,12 @@ def build_report(
     claimed_n: int | None = None,
     n_partitions: int = 16,
     with_pbo: bool = True,
+    assume_aligned: bool = False,
 ) -> Report:
+    if not ledger.verify().ok:
+        raise ValueError("ledger verification failed; statistical report refused")
     recs = ledger.records() if records is None else records
+    _check_cohort([r for r in recs if _is_scored(r)], assume_aligned)
     trials = _distinct(recs)
     n_unscored = sum(1 for r in recs if not _is_scored(r))
     n_scored = len(trials)
@@ -155,7 +181,7 @@ def build_report(
     n_eff = dsr_eff = None
     mats = [ledger.load_returns(r["returns_hash"]) for r in trials if r.get("returns_hash")]
     mats = [a for a in mats if a is not None]
-    if len(mats) >= 2 and len({len(a) for a in mats}) == 1:
+    if len(mats) == n_scored and len(mats) >= 2 and len({len(a) for a in mats}) == 1:
         n_eff = effective_number_of_trials(np.column_stack(mats))
         if n_obs > 1:
             dsr_eff = deflated_sharpe_ratio(sr, n_obs, max(n_eff, 1.0), var_sr, skew, kurt)
@@ -163,7 +189,9 @@ def build_report(
     pbo_val = pbo_n = None
     pbo_note = None
     if with_pbo:
-        pbo_val, pbo_n, pbo_note = pbo_from_ledger(ledger, trials, n_partitions)
+        pbo_val, pbo_n, pbo_note = pbo_from_ledger(
+            ledger, trials, n_partitions, assume_aligned=assume_aligned
+        )
 
     return Report(
         n_records=len(recs),

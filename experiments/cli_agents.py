@@ -31,7 +31,8 @@ HARNESS_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 MODELS = {"codex": "gpt-6.1-sol", "claude": "haiku"}
 PROMPT = (
     "You are a quantitative researcher. Use the trial-ledger MCP tools to research the "
-    "configured daily crypto dataset. First call describe_dataset. "
+    "configured daily crypto dataset (protocol causal-v2; volatility targeting uses a "
+    "fixed 0.02 per-period target, capped at 2x leverage). First call describe_dataset. "
     + USER_TASK.replace("call submit_final_answer with", "report")
     + f" Use at most {TOOL_BUDGET} backtest tool calls. You may write scratch code, but "
     "evaluate strategies only with the MCP tools so costs and conventions stay consistent. "
@@ -75,7 +76,7 @@ def run(agent: str, kind: str, seed: int, rep: int = 0, timeout: int = 1800) -> 
     if episode.exists():
         return json.loads(episode.read_text())
     out.mkdir(parents=True, exist_ok=True)
-    logdir = REPO / "runs" / model_id.replace("/", "__") / run_id
+    logdir = REPO / "runs" / "causal-v2" / model_id.replace("/", "__") / run_id
     logdir.mkdir(parents=True, exist_ok=True)
     if (out / "ledger").exists():
         # An interrupted attempt has no final episode; keep its raw logs, restart cleanly.

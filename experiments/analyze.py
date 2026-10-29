@@ -28,7 +28,7 @@ from trial_ledger.stats import (
 
 from .markets import make_market
 
-RESULTS = Path(__file__).parent / "results"
+RESULTS = Path(__file__).parent / "results" / "causal-v2"
 THRESH = 0.95
 PBO_PARTITIONS = 16
 
@@ -44,7 +44,9 @@ def _f(x: Any) -> float | None:
 def analyze_episode(ep_dir: Path) -> dict[str, Any]:
     ep = json.loads((ep_dir / "episode.json").read_text())
     ledger = Ledger(ep_dir / "ledger")
-    ver = ledger.verify(expect_head=ep["ledger_head"])
+    ver = ledger.verify(expect_head=ep["ledger_head"], check_returns=True)
+    if not ver.ok:
+        raise ValueError(f"ledger verification failed: {ep_dir}")
     market, full, oos_idx = make_market(ep["market"], ep["seed"])
     ppy = market.periods_per_year
 
@@ -58,7 +60,7 @@ def analyze_episode(ep_dir: Path) -> dict[str, Any]:
             continue
         res = run_backtest(r["strategy"], market)
         if hash_array(res.returns) != h:
-            mismatches += 1
+            raise ValueError(f"trial return replay mismatch: {ep_dir}, seq={r['seq']}")
         trials[h] = r
         returns[h] = res.returns
     n_ledger = len(trials)
@@ -185,6 +187,8 @@ def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
 
 
 def summarise(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if any(r.get("ledger_ok") is False or r.get("replay_mismatches", 0) for r in rows):
+        raise ValueError("unverified episode; summaries refused")
     groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for r in rows:
         groups[(r["model"], "null" if r["market"] != "btc" else "btc")].append(r)
@@ -245,6 +249,9 @@ def _fmt(v: Any) -> Any:
 def write_tables(rows: list[dict[str, Any]], summary: list[dict[str, Any]]) -> None:
     from .provenance import provenance
 
+    if any(r.get("ledger_ok") is False or r.get("replay_mismatches", 0) for r in rows):
+        raise ValueError("unverified episode; publication refused")
+    RESULTS.mkdir(parents=True, exist_ok=True)
     (RESULTS / "episodes.json").write_text(
         json.dumps(
             {

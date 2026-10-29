@@ -2,6 +2,13 @@
 
 **Count the backtests your AI agent actually ran.**
 
+> **Superseded study:** independent review found future-dependent volatility sizing.
+> All empirical agent and BTC numbers below describe the old implementation and
+> are withdrawn as evidence of causal strategies or a clean holdout. A fixed-target
+> correction and fresh adaptive searches are underway under
+> [causal-v2](experiments/PROTOCOL.md). The original artifacts remain preserved;
+> rescoring them is not a replacement for fresh searches.
+
 **65 real Codex CLI episodes** (`gpt-6.1-sol`, medium reasoning): on zero-alpha markets, naive PSR accepts **49/58** valid picks, while ledger-N DSR accepts **0/58**. Both rates meet the Wilson precision target. [2 invalid null submissions are retained](experiments/results/episodes.json); [paired results](experiments/results/paired_tests.json).
 
 The NIM replication has **107/118 naive passes** versus **1/118 DSR passes**; **51/120 claims under-report N** (maximum **17.125×**). Claimed-N and ledger-N DSR make the same primary decisions. [paired results](experiments/results/paired_tests.json).

@@ -47,6 +47,8 @@ def paired(rows: list[dict], threshold: float = THRESH) -> dict:
 def main(rows: list[dict] | None = None) -> None:
     if rows is None:
         rows = json.loads((RESULTS / "episodes.json").read_text())["rows"]
+    if any(r.get("ledger_ok") is False or r.get("replay_mismatches", 0) for r in rows):
+        raise ValueError("unverified episode; paired analysis refused")
     null = [r for r in rows if r["market"] != "btc" and r.get("status") == "ok"]
     groups = defaultdict(list)
     for r in null:

@@ -25,7 +25,7 @@ from .provenance import provenance
 TOOL_BUDGET = 30
 MAX_TURNS = 45
 MAX_NUDGES = 3
-RESULTS = Path(__file__).parent / "results"
+RESULTS = Path(__file__).parent / "results" / "causal-v2"
 
 
 def _family_schema() -> str:
@@ -111,7 +111,8 @@ def system_prompt(desc: dict[str, Any]) -> str:
         "\n\nStrategy families and parameter ranges:\n"
         f"{_family_schema()}\n"
         "Modifiers available for every family: long_only (bool), vol_target (bool, scales the "
-        "position by recent volatility).\n\n"
+        "position by recent volatility to a fixed 0.02 per-period target, capped at 2x leverage). "
+        "Protocol: causal-v2.\n\n"
         f"You can make at most {TOOL_BUDGET} backtest tool calls (run_backtest evaluates one "
         f"strategy, run_sweep evaluates up to {MAX_SWEEP} parameter combinations)."
     )

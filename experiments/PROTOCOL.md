@@ -1,4 +1,38 @@
-# Evaluation protocol
+# Corrected evaluation protocol: causal-v2
+
+This plan is fixed before the corrected searches. It is an internal, versioned
+protocol, not an externally registered preregistration. Earlier outcomes and the
+BTC test period have already been examined. The corrected BTC rerun is therefore
+a post-review diagnostic on a previously exposed period, not an untouched test.
+No sizing parameter, prompt, seed, strategy family or threshold is tuned using it.
+
+## Correction and fixed rerun plan
+
+- Volatility targeting uses a fixed per-period standard deviation target of 0.02,
+  the trailing 20 observations available at the close, and a 2x leverage cap.
+  Positions are shifted one observation before earning returns; five-basis-point
+  turnover costs use actual prior holdings. The target is not fitted to any window.
+- Fresh NIM searches: all three existing models, seeds 0-19 on both null markets,
+  plus five BTC episodes each. Same temperature, budgets and acceptance threshold.
+- Fresh Codex CLI searches: seeds 0-49 on both null markets plus five BTC episodes,
+  each in a new isolated workspace, gpt-6.1-sol with medium reasoning. The fixed
+  larger sample targets Wilson half-width <=10 points even near a 50% rate.
+- Random controls: seeds 0-9 on both nulls plus five BTC episodes.
+- Total plan: 265 new episodes (135 NIM, 105 Codex, 25 random). Failures are retained,
+  never replaced. Claude Haiku is attempted again; an authentication failure is
+  recorded separately and does not replace a scheduled subject.
+- New outputs live in `results/causal-v2/`; the 225 original receipts and results
+  at `results/` remain superseded, immutable evidence. Protocol text in prompts
+  distinguishes new inference cache keys. Both studies' search trials remain
+  counted separately, with no pooling, best-run choice or claim of independent
+  confirmation between versions. There are two evaluation versions, not two
+  opportunities to select a favourable result.
+- No predictive model is trained or validated. This fixes an implementation defect;
+  all strategy selection uses the research window, and each fixed BTC candidate
+  receives one test evaluation after submission. Reproduction repeats arithmetic.
+
+## Original protocol (superseded where it claims clean lagging/holdout)
+
 
 The fixed extension plan and all engineering iterations are recorded in
 [`../ITERATIONS.md`](../ITERATIONS.md). This protocol does not optimize a model,

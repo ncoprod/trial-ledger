@@ -138,3 +138,66 @@ def test_shared_return_migration_preserves_anchor_and_bytes(tmp_path, monkeypatc
     assert hash_array(migrated.load_returns(record["returns_hash"])) == record["returns_hash"]
     assert not list((run / "ledger/returns").glob("*.npz"))
     assert len(list((tmp_path / "returns").glob("*.npz"))) == 1
+
+
+@pytest.mark.parametrize("corruption", ["score", "return_hash", "tail"])
+def test_analysis_refuses_corrupted_episode(tmp_path, corruption):
+    import json
+
+    from experiments.analyze import analyze_episode
+    from trial_ledger.backtest import run_backtest
+    from trial_ledger.ledger import Ledger
+
+    market, _, _ = make_market("garch", 10)
+    ledger = Ledger(tmp_path / "ledger")
+    for spec in [{"family": "momentum", "lookback": 20}, {"family": "momentum", "lookback": 30}]:
+        result = run_backtest(spec, market)
+        ledger.append(strategy=result.spec, returns=result.returns)
+    ep = dict(
+        model="test",
+        market="garch",
+        seed=10,
+        rep=0,
+        status="ok",
+        tool_calls=2,
+        ledger_head=" ".join(map(str, ledger.head())),
+        submission={"strategy": {"family": "momentum"}, "n_strategies_tested": 2},
+    )
+    (tmp_path / "episode.json").write_text(json.dumps(ep))
+    records = ledger.records()
+    if corruption == "score":
+        records[0]["sharpe"] = 10
+    elif corruption == "return_hash":
+        records[0]["returns_hash"] = "0" * 64
+    else:
+        records.pop()
+    ledger.path.write_text("".join(json.dumps(r) + "\n" for r in records))
+    with pytest.raises(ValueError, match="verification failed"):
+        analyze_episode(tmp_path)
+
+
+def test_reproduce_does_not_publish_after_failed_replay(monkeypatch):
+    from experiments import run
+
+    monkeypatch.setattr(run, "cmd_replay_check", lambda args: 1)
+
+    def unexpected(*args):
+        pytest.fail("publication attempted after failed replay")
+
+    monkeypatch.setattr(run, "cmd_analyze", unexpected)
+    monkeypatch.setattr(run, "cmd_figures", unexpected)
+    assert run.cmd_reproduce(None) == 1
+
+
+def test_summaries_and_paired_tests_refuse_failed_integrity(tmp_path, monkeypatch):
+    from experiments import analyze, paired_tests
+
+    monkeypatch.setattr(analyze, "RESULTS", tmp_path)
+    monkeypatch.setattr(paired_tests, "RESULTS", tmp_path)
+    for row in [{"ledger_ok": False}, {"replay_mismatches": 1}]:
+        for call in [analyze.summarise, paired_tests.main]:
+            with pytest.raises(ValueError, match="unverified episode"):
+                call([row])
+        with pytest.raises(ValueError, match="unverified episode"):
+            analyze.write_tables([row], [])
+    assert not list(tmp_path.iterdir())

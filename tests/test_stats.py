@@ -182,19 +182,20 @@ def test_pbo_splits_cover_every_combination_once():
 # ---------------------------------------------------------------------------------------
 
 
-def test_purged_kfold_no_leakage():
-    n, h, emb = 100, 3, 2
-    folds = list(S.purged_kfold(n, 5, label_horizon=h, embargo=emb))
-    assert len(folds) == 5
+@pytest.mark.parametrize("h, emb", [(0, 0), (3, 0), (3, 1), (3, 2), (3, 5)])
+def test_purged_kfold_no_leakage(h, emb):
+    n = 20
+    folds = list(S.purged_kfold(n, 4, label_horizon=h, embargo=emb))
     covered = np.concatenate([te for _, te in folds])
     np.testing.assert_array_equal(np.sort(covered), np.arange(n))
     for train, test in folds:
-        a, b = test[0], test[-1] + 1
-        assert not set(train) & set(test)
-        # no training label window [i, i+h] overlaps the test fold
-        assert not any(a <= i + h and i < b for i in train)
-        # embargo after the test fold
-        assert not any(b <= i < b + emb for i in train)
+        for i in train:
+            for j in test:
+                assert i + h < j or j + h < i
+        end = test[-1] + h + 1
+        assert not any(end <= i < end + emb for i in train)
+        expected = [i for i in range(n) if (i + h < test[0] or i >= end + emb)]
+        np.testing.assert_array_equal(train, expected)
 
 
 def test_purged_kfold_fractional_embargo():

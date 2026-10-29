@@ -38,6 +38,7 @@ FAMILY_DOCS = {
     "rsi": "long when RSI(period) < lower, short when > upper, flat otherwise",
 }
 VOL_WINDOW = 20
+VOL_TARGET = 0.02  # fixed per-period risk target, never estimated from the evaluation window
 MAX_LEVERAGE = 2.0
 
 
@@ -207,9 +208,8 @@ def signal(spec: dict[str, Any], market: Market) -> np.ndarray:
         sig = np.clip(sig, 0.0, 1.0)
     if s["vol_target"]:
         vol = _rolling_std(r, VOL_WINDOW)
-        target = np.nanmedian(vol) if np.isfinite(vol).any() else 1.0
         with np.errstate(divide="ignore", invalid="ignore"):
-            scale = np.clip(target / vol, 0.0, MAX_LEVERAGE)
+            scale = np.clip(VOL_TARGET / vol, 0.0, MAX_LEVERAGE)
         sig = sig * np.nan_to_num(scale, nan=0.0)
     return sig
 
@@ -260,13 +260,14 @@ def run_backtest(spec: dict[str, Any], market: Market, eval_from: int = 0) -> Ba
     s = normalise_spec(spec)
     pos = signal(s, market)
     rets = strategy_returns(s, market)[max(eval_from - 1, 0) :]
-    held = pos[:-1][max(eval_from - 1, 0) :]
+    held = pos[:-1]
+    turn = np.abs(np.diff(np.concatenate([[0.0], held])))[max(eval_from - 1, 0) :]
+    held = held[max(eval_from - 1, 0) :]
     m = sharpe_moments(rets)
     ppy = market.periods_per_year
     equity = np.cumprod(1.0 + rets)
-    peak = np.maximum.accumulate(equity)
+    peak = np.maximum.accumulate(np.concatenate([[1.0], equity]))[1:]
     mdd = float(np.max(1.0 - equity / peak)) if equity.size else 0.0
-    turn = np.abs(np.diff(np.concatenate([[0.0], held])))
     return BacktestResult(
         spec=s,
         returns=rets,

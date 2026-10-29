@@ -135,9 +135,34 @@ def cmd_replay_check(args) -> int:
 
     eps = [json.loads(p.read_text()) for p in sorted((RESULTS / "runs").glob("*/*/episode.json"))]
     bad = 0
+    # Superseded searches retain their original hashes, not corrected-engine scores.
+    legacy = RESULTS.parent / "runs"
+    legacy_eps = list(legacy.glob("*/*/episode.json"))
+    from trial_ledger.ledger import Ledger
+
+    for path in legacy_eps:
+        e = json.loads(path.read_text())
+        verified = Ledger(path.parent / "ledger").verify(
+            expect_head=e["ledger_head"], check_returns=True
+        )
+        if not verified.ok:
+            print(f"SUPERSEDED INTEGRITY FAILURE {path}", flush=True)
+            bad += 1
+    print(
+        f"integrity-audited {len(legacy_eps)} superseded ledgers (not corrected searches)",
+        flush=True,
+    )
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         for e in eps:
+            path = RESULTS / "runs" / e["model"].replace("/", "__") / e["run_id"]
+            verified = Ledger(path / "ledger").verify(
+                expect_head=e["ledger_head"], check_returns=True
+            )
+            if not verified.ok:
+                bad += 1
+                print(f"INTEGRITY FAILURE {e['model']} {e['run_id']}", flush=True)
+                continue
             if "-cli/" in e["model"]:
                 # CLI inference is not reproducible offline. Audit its anchored ledger
                 # and rerun each recorded evaluation; never impersonate an API replay.
@@ -189,6 +214,8 @@ def cmd_reproduce(args) -> int:
     """Rebuild every table and figure from the committed ledgers (re-running each logged
     trial and checking its returns hash), after replaying all episodes from the cache."""
     rc = cmd_replay_check(args)
+    if rc:
+        return rc
     cmd_analyze(argparse.Namespace(models=None))
     cmd_figures(args)
     from .provenance import write_manifest
