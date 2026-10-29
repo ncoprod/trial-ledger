@@ -305,3 +305,16 @@ Verification milestone: full suite 108 PASS in 8.99 s; Actions 40853488417 PASS.
 - Result files: `experiments/results/runs/codex-cli__gpt-6.1-sol/`,
   `experiments/results/paired_tests.json` and `episodes.json` after analysis.
   NIM extension is still running; final aggregation will retain every attempt.
+
+### Completed-data milestone
+
+- All 65 Codex ledgers verified against external receipt anchors and stored return
+  bytes. Staging snapshot also includes completed NIM extensions, never an in-flight
+  episode. The early signflip/seed 0 pilot's missing tool-call count was recovered
+  from its retained `calls.jsonl` (30 research calls); historical launch/source
+  metadata remain explicitly unknown. No inference was rerun.
+- The acceptance figure had overlapping model labels and a legend over an interval.
+  Wrap long labels, move the legend outside the plot, then inspect the exported PNG.
+  Values and intervals are unchanged. Full local suite: 110 passed; ruff clean.
+- A provenance wording edit exceeded the lint line limit in 09dfaf00; 04f9d05a
+  restores lint. The failed CI run is retained (40858774253).

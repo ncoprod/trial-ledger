@@ -51,7 +51,7 @@ def fig_false_discovery(rows: list[dict]) -> Path:
     models = sorted(by, key=lambda m: (m == "random-search", m))
     x = np.arange(len(models))
     w = 0.26
-    fig, ax = plt.subplots(figsize=(8.2, 4.2), dpi=150)
+    fig, ax = plt.subplots(figsize=(10, 4.8), dpi=150)
     for i, (key, label, color) in enumerate(
         [
             ("psr0", "naive: PSR(SR>0) > 0.95", C_NAIVE),
@@ -89,16 +89,23 @@ def fig_false_discovery(rows: list[dict]) -> Path:
                     fontsize=7.5,
                     color=INK,
                 )
-    ax.set_xticks(x, [f"{short(m)}\n(n={len(by[m])})" for m in models], fontsize=8, color=INK)
+    ax.set_xticks(
+        x,
+        [f"{short(m).replace('nemotron-', 'nemotron\n')}\n(n={len(by[m])})" for m in models],
+        fontsize=8,
+        color=INK,
+    )
     ax.set_ylim(0, 1.08)
-    ax.set_ylabel("share of episodes 'significant'", color=INK)
+    ax.set_ylabel("valid picks accepted (Wilson 95% CI)", color=INK)
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda value, _: f"{value:.0%}"))
     ax.set_title(
         "Zero-alpha markets: how often the selected strategy passes",
+        pad=50,
         loc="left",
         color=INK,
         fontsize=11,
     )
-    ax.legend(frameon=False, fontsize=8, loc="upper right")
+    ax.legend(frameon=False, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, 1.12), ncol=3)
     _style(ax)
     fig.tight_layout()
     out = FIG / "false_discovery.png"

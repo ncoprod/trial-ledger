@@ -28,7 +28,8 @@ scored research evaluations in this experiment come through MCP.
 ## Data and selection
 
 BTCUSDT daily closes, 2018-01-01 through 2023-12-31, are the research window.
-The agent never sees 2024-01-01 through 2026-09-30. The final submitted candidate
+The tools withhold 2024-01-01 through 2026-09-30. This does not exclude
+knowledge of public BTC history from model pretraining. The final submitted candidate
 alone is evaluated on that held-out window; later reproduction only repeats its
 arithmetic. No prompt, strategy, model or acceptance rule is revised from test
 performance. There is no separately tuned predictive model. CSCV partitions the
@@ -88,7 +89,7 @@ also support `trial-ledger pbo` directly, without regenerating markets.
 
 `results/episodes.json` preserves full precision. `results/provenance.json` maps
 artifact checksums, commands, configurations, source commits/hashes and episode
-receipts. Hosted model weight revisions are not exposed; model-card revisions in
+receipts. Hosted model weight revisions were not pinned or recorded; model-card revisions in
 the licence audit are not deployment revisions. Original NIM receipts lacked an
 exact launch command; caches and original committed ledgers are retained, and this
 limitation is stated rather than reconstructed as a known fact. Workspace hashes
