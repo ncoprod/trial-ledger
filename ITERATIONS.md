@@ -464,3 +464,20 @@ in either pending model; their idle clients exited 143 for the next queue restar
 - Result: pending. This is not a prompt, seed, threshold or strategy change, and
   no timing improvement is claimed merely from changing the constant.
 - Source: `experiments/llm.py`; final completed model receipts/results.
+
+## Iteration 25 — uncertainty for headline count accuracy
+
+- Hypothesis: zero observed under-reports can be misread as a population rate of
+  zero when only an observed count is displayed.
+- Change: reuse the existing Wilson method for each cohort's under-report share
+  among all usable claims, including claims from invalid final strategies. Show
+  these intervals beside the counts in README and the generated results table.
+- Command: `uv run --no-sync pytest tests/test_experiment.py tests/test_paired_tests.py`;
+  final `python -m experiments.run reproduce` regenerates all metric artifacts.
+- Result file: `experiments/results/paired_tests.json` after final regeneration.
+  No inference, candidate, selection threshold or sample-plan changes. The same
+  shared-market dependence caveat applies to these descriptive intervals.
+
+Iteration 25 focused verification: 11 tests PASS; ruff check/format PASS. The
+report renderer derives its displayed bounds from stored counts with the same
+Wilson function, so existing result snapshots remain readable before regeneration.

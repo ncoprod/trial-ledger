@@ -106,6 +106,7 @@ def main(rows: list[dict] | None = None) -> None:
         under = [r for r in claims if r["claimed_n"] < r["n_ledger"]]
         result["underreported"] = len(under)
         result["claims_available"] = len(claims)
+        result["underreported_wilson_95_ci"] = wilson(len(under), len(claims)) if claims else None
         result["max_ledger_over_claimed"] = max(
             (r["undercount_ratio"] for r in claims), default=None
         )

@@ -1,6 +1,6 @@
 """Render experiments/results/RESULTS.md from summary.json and episodes.csv.
 
-Every number in the README's results section is copied from this generated file.
+The README links to the underlying full-precision result artifacts.
 """
 
 from __future__ import annotations
@@ -245,14 +245,15 @@ def render() -> str:
             "[provenance.json](provenance.json). Threshold stays fixed at 0.95.",
             "",
             "| cohort | valid null picks | naive passes | ledger-N DSR passes | "
-            "under-reported / usable claims |",
+            "under-reported / usable claims [95% CI] |",
             "|---|---|---|---|---|",
         ]
         for name, cohort in paired["headlines"].items():
             out.append(
                 f"| {name} | {cohort['episodes']} | {cohort['psr0']['passes']} "
                 f"| {cohort['dsr_ledger']['passes']} | {cohort['underreported']}/"
-                f"{cohort['claims_available']} |"
+                f"{cohort['claims_available']} "
+                f"{_ci(wilson(cohort['underreported'], cohort['claims_available']))} |"
             )
         out += [
             "",
