@@ -72,11 +72,20 @@ def pbo_from_ledger(
     ledger: Ledger, trials: list[dict[str, Any]], n_partitions: int = 16
 ) -> tuple[float | None, int | None, str | None]:
     series = []
+    missing = 0
     for r in trials:
         if r.get("returns_hash"):
             arr = ledger.load_returns(r["returns_hash"])
             if arr is not None:
                 series.append(arr)
+            else:
+                missing += 1
+    if missing:
+        return (
+            None,
+            None,
+            f"missing returns for {missing} trials; PBO requires the full trial universe",
+        )
     if len(series) < 2:
         return None, None, "fewer than 2 trials with stored return series"
     lengths = {len(s) for s in series}

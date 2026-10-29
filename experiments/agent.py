@@ -164,7 +164,7 @@ def run_episode(
     out_dir.mkdir(parents=True)
     ledger = Ledger(out_dir / "ledger", returns_directory=(results_dir or RESULTS) / "returns")
     svc = BacktestService(
-        market, ledger, agent=model, session_id=run_id, source="agent", store_returns=True
+        market, ledger, agent=model, session_id=run_id, source="agent", store_returns=not offline
     )
     client = ChatClient(model, temperature=temperature, offline=offline)
     desc = svc.describe()

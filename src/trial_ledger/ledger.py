@@ -88,7 +88,10 @@ class Ledger:
         self.dir.mkdir(parents=True, exist_ok=True)
         self.returns_dir.mkdir(parents=True, exist_ok=True)
         if self.returns_dir.resolve() != (self.dir / "returns").resolve():
-            self.store_pointer.write_text(os.path.relpath(self.returns_dir, self.dir) + "\n")
+            if not self.store_pointer.exists():
+                pointer_tmp = self.dir / f".store-{uuid.uuid4().hex}.tmp"
+                pointer_tmp.write_text(os.path.relpath(self.returns_dir, self.dir) + "\n")
+                os.replace(pointer_tmp, self.store_pointer)
         self.path.touch(exist_ok=True)
 
     @contextmanager

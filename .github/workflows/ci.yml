@@ -53,3 +53,33 @@ jobs:
       - run: uv sync --extra mcp --group dev --group experiments
       - name: replay every agent episode from the committed response cache
         run: uv run python -m experiments.run replay-check
+      - name: recompute PBO from committed return objects
+        run: uv run trial-ledger --dir experiments/results/runs/openai__gpt-oss-20b/signflip-s0-r0/ledger pbo
+
+  wheels:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64
+          - os: macos-15
+            target: aarch64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          working-directory: rust
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          manylinux: auto
+      - uses: astral-sh/setup-uv@v6
+      - name: install the built wheel and check NumPy parity
+        run: |
+          uv sync --extra mcp --group dev --group experiments
+          uv pip install rust/dist/*.whl
+          uv run --no-sync pytest tests/test_rust_parity.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}-${{ matrix.target }}
+          path: rust/dist/*.whl
