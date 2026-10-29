@@ -430,3 +430,17 @@ pass under each DSR, and 32/80 under-reports. Both invalid gpt-oss answers
 are queued, so README remains explicitly interim. Sources: `episodes.json`,
 `paired_tests.json`, `returns_integrity.json`, `provenance.json`; all artifact
 and episode hashes verified, all three exported figures inspected.
+
+## Iteration 23 — reduce idle slot-acquisition delay
+
+- Hypothesis: ten-second mutex polling misses short releases when other repositories
+  poll more frequently. Two slot-2 ownership changes occurred while both trial-ledger
+  extension batches stayed queued. This is scheduling latency, not an API failure.
+- Change: one-second polling of the same two atomic mkdir slots. Stop only the two
+  idle queued clients and resume their unchanged commands; no API request or episode
+  had started in either batch. Keep one serial client per acquired slot.
+- Command: `uv run --no-sync pytest tests/test_nim_slot.py`; rerun both pending model
+  batches with the original seeds 10-19, two null markets, one worker and `--resume`.
+- Result: pending acquisition; logs in ignored `runs/nim-*-queue.log`, with exact
+  launch receipts and exit files. All research settings and completed outcomes remain
+  unchanged. Source: `experiments/llm.py`; final receipts will record the source hash.

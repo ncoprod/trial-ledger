@@ -43,7 +43,7 @@ def nim_slot():
             slot = candidate
             break
         if slot is None:
-            time.sleep(10)
+            time.sleep(1)
     print(f"acquired {slot.name}", flush=True)
 
     def terminate(_signum, _frame):
