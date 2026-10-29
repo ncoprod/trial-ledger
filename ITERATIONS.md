@@ -449,3 +449,18 @@ Iteration 22 denominator follow-up: the per-model null table now shows attempts
 with the valid-pick count in parentheses, matching the cohort table. For example,
 gpt-oss has 40 attempts and 38 scored picks in the current snapshot. Generated
 artifacts will refresh from this display-only change with the final analysis.
+
+Iteration 23 outcome: one-second polling did not produce an acquisition before
+both slots transferred to other repositories again. No request or episode started
+in either pending model; their idle clients exited 143 for the next queue restart.
+
+## Iteration 24 — final scheduling-latency check
+
+- Hypothesis: a 0.1-second interval reduces missed short release windows while
+  preserving the same atomic mutex and one serial requester per slot.
+- Change: only the idle wait constant; restart the two still-unstarted batches.
+- Command: `uv run --no-sync pytest tests/test_nim_slot.py`; the unchanged pending
+  model commands are recorded in `runs/nim-*-fair-launch.json` with logs/exit files.
+- Result: pending. This is not a prompt, seed, threshold or strategy change, and
+  no timing improvement is claimed merely from changing the constant.
+- Source: `experiments/llm.py`; final completed model receipts/results.
