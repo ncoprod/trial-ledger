@@ -11,10 +11,11 @@ from collections import Counter, defaultdict
 
 import numpy as np
 
+from trial_ledger.ledger import Ledger
 from trial_ledger.stats import annualise_sharpe, sharpe_ratio
 
 from .analyze import RESULTS, THRESH, wilson
-from .markets import make_market
+from .markets import PERIODS_PER_YEAR, make_market
 
 
 def _pct(x) -> str:
@@ -52,6 +53,46 @@ def _buy_and_hold_line() -> str:
         f"Reference, buy-and-hold BTC: in-sample Sharpe {is_sr:.2f}, out-of-sample Sharpe "
         f"{oos_sr:.2f} ({r_oos.size} days)."
     )
+
+
+def _dsr_passes(rows: list[dict]) -> list[str]:
+    """Null-market episodes whose pick passes the DSR with ledger N, with the dispersion of
+    the trials' Sharpe ratios next to the standard error a zero-Sharpe series would have."""
+    hits = [
+        r
+        for r in rows
+        if r["market"] != "btc"
+        and _num(r["dsr_ledger"]) is not None
+        and _num(r["dsr_ledger"]) > THRESH
+    ]
+    if not hits:
+        return []
+    out = [
+        "",
+        "## Null-market picks that pass the DSR (ledger N)",
+        "",
+        "| agent | market | seed | ledger N | IS Sharpe | DSR (ledger N) "
+        "| SD of trial Sharpes (ann.) | SE of a zero Sharpe (ann.) |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for r in hits:
+        run = (
+            RESULTS
+            / "runs"
+            / r["model"].replace("/", "__")
+            / f"{r['market']}-s{r['seed']}-r{r['rep']}"
+        )
+        recs = {t["returns_hash"]: t for t in Ledger(run / "ledger").records()}
+        srs = np.array([t["sharpe"] for t in recs.values()])
+        n_obs = next(iter(recs.values()))["n_obs"]
+        ppy = PERIODS_PER_YEAR
+        out.append(
+            f"| {_short(r['model'])} | {r['market']} | {r['seed']} | {r['n_ledger']} "
+            f"| {_num(r['is_sharpe']):.2f} | {_num(r['dsr_ledger']):.3f} "
+            f"| {annualise_sharpe(srs.std(ddof=1), ppy):.2f} "
+            f"| {annualise_sharpe(1 / np.sqrt(n_obs), ppy):.2f} |"
+        )
+    return out
 
 
 def render() -> str:
@@ -175,6 +216,7 @@ def render() -> str:
                     f"| {_n(_num(r['dsr_ledger']), '.2f')} |"
                 )
 
+    out += _dsr_passes(rows)
     integrity = [
         "",
         "## Integrity checks",

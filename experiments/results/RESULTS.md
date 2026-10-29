@@ -55,6 +55,12 @@ Per-episode picks:
 | random-search | 3 | ma_crossover | 1.13 | 0.67 | 0.07 |
 | random-search | 4 | ma_crossover | 1.30 | 0.94 | 0.02 |
 
+## Null-market picks that pass the DSR (ledger N)
+
+| agent | market | seed | ledger N | IS Sharpe | DSR (ledger N) | SD of trial Sharpes (ann.) | SE of a zero Sharpe (ann.) |
+|---|---|---|---|---|---|---|---|
+| gpt-oss-20b | signflip | 5 | 45 | 1.30 | 0.999 | 0.29 | 0.41 |
+
 ## Integrity checks
 
 - ledgers verified (hash chain + anchored head): True
