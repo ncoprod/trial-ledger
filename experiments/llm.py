@@ -74,7 +74,7 @@ class ChatClient:
         temperature: float = 0.7,
         max_tokens: int = 4096,
         offline: bool = False,
-        timeout: float = 240.0,
+        timeout: float = 150.0,
         max_retries: int = 7,
     ):
         self.model = model
