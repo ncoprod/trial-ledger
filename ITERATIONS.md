@@ -481,3 +481,15 @@ in either pending model; their idle clients exited 143 for the next queue restar
 Iteration 25 focused verification: 11 tests PASS; ruff check/format PASS. The
 report renderer derives its displayed bounds from stored counts with the same
 Wilson function, so existing result snapshots remain readable before regeneration.
+
+Iteration 24 acquisition outcome: Lightning acquired slot 2, then Ultra acquired
+slot 1. Both clients remain serial; no third slot or request was introduced.
+The observed acquisition does not establish a causal wall-clock speedup from
+the poll change because release timing was controlled by the other repositories.
+All stopped predecessor clients had acquired no slot and issued no requests.
+
+Lightning extension milestone: all 20 new planned episodes completed; the batch
+exits 0. Transient connection/time-out errors recovered with backoff. All 45
+Lightning receipts (40 null plus five BTC) verify against their anchored heads
+and stored returns. The cache and complete receipts are checkpointed without
+staging the active Ultra batch. Source: `results/runs/nvidia__nemotron-3.5-lightning-30b-a3b/`.
