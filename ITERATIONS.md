@@ -125,3 +125,18 @@ candidate and rerun the full pypbo/NumPy/Rust comparison before updating headlin
   all cached responses retained. Full local Python suite: 104 PASS.
 - Source: committed per-episode receipts, `episodes.json`, `paired_tests.json` once
   regenerated. Models' hosted weight revisions are unavailable, explicitly recorded.
+
+## Iteration 9 — committed-ledger PBO and licensing
+
+- Hypothesis: hydration can close the missing-series gap without changing original
+  trial counts, submissions, record bytes or anchors.
+- Command: `python -m experiments.store_returns`; `trial-ledger --dir experiments/results/runs/openai__gpt-oss-20b/signflip-s0-r0/ledger pbo`.
+- Result: initial snapshot restores 14,766 unique compressed objects (119,576,623
+  bytes) for 17,752 distinct per-ledger series across 101 ledgers. Example CLI PBO:
+  0.43954933954933956 over 172 trials, S=16; all required return hashes verified.
+- Source: `experiments/results/returns_integrity.json` (final rerun will cover new episodes).
+- Change: prevent a misleading partial-universe PBO when a return object is missing;
+  scope ignored logs to root `/runs/`, retaining research `experiments/results/runs/`.
+- Licensing: verify Hugging Face cards and upstream licences. Binance dataset terms
+  explicitly impose CC BY-NC-SA 4.0; retain attributed data as authorized and flag
+  non-commercial data separately from MIT code.

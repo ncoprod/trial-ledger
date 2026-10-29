@@ -339,4 +339,4 @@ make reproduce  # replay every agent episode from the response cache, rebuild ta
 }
 ```
 
-License: MIT.
+Code: MIT, copyright Nicolas Coquelet. **Binance-derived data and research artifacts are non-commercial (CC BY-NC-SA 4.0 plus Binance Vision terms).** See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
