@@ -847,3 +847,24 @@ objects are staged. Command: `uv run --no-sync python -m experiments.store_retur
 restoration. Partial store-count receipts and acceptance aggregates are excluded.
 Transient malformed-response TypeErrors subsequently recover through the unchanged
 retry policy; no extra episode or replacement seed is introduced.
+
+Paper reporting iteration: pooled cohort rates can hide model heterogeneity and
+leave the random control unassessed. Add a generated acceptance table for every
+model and the random-search control, using statistic-specific valid denominators
+and the recorded primary threshold. Describe the control's fixed sampling,
+rounded-feedback selection and record-count reporting without changing them.
+Command: `uv run --no-sync ruff check paper/make_tables.py` and format check:
+PASS. Empirical generation remains gated on the full committed sample. Output:
+`paper/generated/model_acceptance.tex` after final generation.
+
+Traceability iteration: the 25 corrected control receipts omit launch provenance.
+The contemporaneous `runs/v2-baseline-launch.json` records the exact command and
+source commit 5dcf789a. Import it as `causal-v2/control_launch.json`; attach
+explicitly recovered metadata to each control, including seed/config, no-inference
+revision label, committed source-snapshot hashes and the original receipt SHA-256.
+Command: `uv run --no-sync python -m runs.add_control_provenance`: 25 augmented.
+Original receipt bytes match committed HEAD before augmentation; no trial record,
+submission, status or anchor changes. The recovery note distinguishes reconstructed
+launch-snapshot hashes from instrumented loaded-code hashes. Future baseline
+generation still needs the same automatic provenance field after live NIM batches
+finish; its selection algorithm and evaluation remain unchanged.
