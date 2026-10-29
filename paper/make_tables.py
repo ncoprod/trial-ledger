@@ -100,8 +100,22 @@ def main():
     provenance = committed(RESULTS + "provenance.json")
     benchmark = committed("benchmarks/results/linux/pbo_benchmark.json")
     kernel = committed("benchmarks/results/linux/kernel_interleaved.json")
+    calibration = committed("experiments/data/garch_fit.json")
+    review = committed(RESULTS + "review_verification.json")
     claude = committed(RESULTS + "attempts/claude-cli__haiku/signflip-s0-r0/episode.json")
-    assert len(episodes) == 265, "the fixed sample is incomplete"
+    expected = set()
+    for model in NAMES:
+        null_seeds = (
+            50 if model.startswith("codex-cli/") else 10 if model == "random-search" else 20
+        )
+        for market in ("signflip", "garch", "btc"):
+            expected.update(
+                (model, market, seed, 0) for seed in range(5 if market == "btc" else null_seeds)
+            )
+    actual = {(r["model"], r["market"], r["seed"], r["rep"]) for r in episodes}
+    assert actual == expected and len(episodes) == len(expected), (
+        "fixed sample differs from protocol"
+    )
     assert all(r["ledger_ok"] and not r["replay_mismatches"] for r in episodes)
     assert store["ledgers"] == len(episodes)
     h = paired["headlines"]
@@ -142,6 +156,9 @@ def main():
         "TestEnd": config["oos_period"][1],
         "ProtocolCommit": config["protocol_commit"][:8],
         "AnalysisCommit": provenance["git_commit"][:12],
+        "VerifiedTests": min(review["python_tests"].values()),
+        "VerifiedRustTests": min(review["rust_tests"].values()),
+        "VerifiedCiCommit": review["ci"]["headSha"][:8],
         "StoredLedgers": store["ledgers"],
         "StoredTrials": f"{store['trials']:,}",
         "StoredObjects": f"{store['unique_compressed_objects']:,}",
@@ -150,6 +167,22 @@ def main():
     }
     (OUT / "numbers.tex").write_text(
         "\n".join(rf"\newcommand{{\{key}}}{{{value}}}" for key, value in numbers.items()) + "\n"
+    )
+    table(
+        "data",
+        "Frozen zero-mean GARCH calibration using demeaned BTC research returns. "
+        "The persistence constraint is active to numerical precision.",
+        [r"$\omega$", r"$\alpha$", r"$\beta$", r"$\nu$", "Persistence cap"],
+        [
+            [
+                *(
+                    f"{calibration['parameters'][key]:.7g}"
+                    for key in ("omega", "alpha", "beta", "nu")
+                ),
+                calibration["max_persistence"],
+            ]
+        ],
+        "rrrrr",
     )
     table(
         "cohorts",
@@ -304,11 +337,15 @@ def main():
         "The complete SHA-256 map is in generated/manifest.json.",
         ["Artifact", "Source commit"],
         [
-            ["Corrected protocol", r"\texttt{5dcf789a}"],
+            ["Corrected protocol", rf"\texttt{{{config['protocol_commit'][:8]}}}"],
             ["Episode analysis and stored returns", rf"\texttt{{{provenance['git_commit'][:12]}}}"],
             [
                 "Linux native benchmark",
                 rf"\texttt{{{benchmark['meta']['provenance']['git_commit'][:12]}}}",
+            ],
+            [
+                "Review regressions and binary notices",
+                rf"\texttt{{{review['ci']['headSha'][:12]}}}",
             ],
         ],
         "ll",

@@ -1,4 +1,4 @@
-"""Figures for the README, generated from experiments/results/episodes.csv."""
+"""Figures for the README, generated from experiments/results/causal-v2/episodes.csv."""
 
 from __future__ import annotations
 
@@ -165,9 +165,9 @@ def fig_btc_oos(rows: list[dict]) -> Path | None:
     lim = max(2.0, max(_num(r["is_sharpe"]) for r in btc) * 1.1)
     ax.plot([0, lim], [0, lim], color=MUTED, lw=0.8, ls="--")
     ax.set_xlabel("in-sample Sharpe, 2018-2023 (annualised)", color=INK)
-    ax.set_ylabel("out-of-sample Sharpe, 2024-01 to 2026-09", color=INK)
+    ax.set_ylabel("diagnostic Sharpe, 2024-01 to 2026-09", color=INK)
     ax.set_title(
-        "BTCUSDT: selected strategy in vs out of sample", loc="left", color=INK, fontsize=11
+        "BTCUSDT: previously examined diagnostic period", loc="left", color=INK, fontsize=11
     )
     ax.legend(frameon=False, fontsize=7.5)
     _style(ax)

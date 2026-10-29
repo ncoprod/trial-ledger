@@ -746,3 +746,21 @@ and spacing in the Python README example; both are corrected. Ruff check/format
 then PASS (53 files). The ignored transport helper initially passed an invalid
 combined diff-tree flag; split it into the documented flags and resume from the
 same base/target. No research receipt or main history changes for transport.
+
+Publication wording iteration: the corrected RESULTS renderer and BTC figure now
+explicitly identify the later period as previously examined. The generated report
+opens with the sizing correction and distinguishes fresh searches from rescoring.
+Only publication labels change; no prompt, inference, selection or backtest changes.
+Figures will regenerate once the fixed sample completes.
+
+Paper draft iteration: `paper/main.tex` now contains every requested section,
+with established-statistic equations, explicit registration status, corrected
+causal sizing, conditional-PBO scope and the exposed-BTC limitation. All measured
+headlines use generated macros. Tables, figures and numerical macros remain
+unpublished until the complete committed sample passes the generator's exact
+265-key check. Added the frozen calibration table and review-CI provenance
+inputs to that generator. Gençay's official arXiv abstract independently confirms
+the stated restricted-tool/search-count comparison; no unverifiable citation is
+added. Source-only draft commit precedes the final generated inputs and PDF.
+Publication lint: two initially overlong table-label strings shortened; final
+ruff check and format PASS (53 files).
