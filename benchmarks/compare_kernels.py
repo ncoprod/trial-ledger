@@ -3,6 +3,7 @@
 import argparse
 import importlib.util
 import json
+import platform
 import time
 from pathlib import Path
 
@@ -69,6 +70,8 @@ def main():
             }
         ),
         "benchmark_source_sha256": hash_file(__file__),
+        "platform": platform.platform(),
+        "numpy": np.__version__,
         "builds": builds,
         "rows": rows,
         "caveat": "Interleaved on a shared machine; no isolated-latency guarantee.",

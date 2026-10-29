@@ -253,3 +253,19 @@ Verification milestone: full suite 108 PASS in 8.99 s; Actions 40853488417 PASS.
 - Result: 7 focused tests PASS; new regression preserves exact ledger bytes, head
   anchor and decompressed return hash while removing the duplicate local object.
   Full migration pending; source: `experiments/results/returns_integrity.json`.
+
+## Iteration 16 — isolate performance measurement from shared-machine load
+
+- Hypothesis: the shared M1 cannot currently give a stable end-to-end latency ratio.
+  Final candidate's full checks pass, but pypbo's 1000x10/S16 median rose to 72.10 s,
+  versus 1.98 s historically. The resulting 46,273x ratio is not a credible portable
+  speedup claim. Memory pressure is suspected, not established by per-run telemetry.
+- Change: add a manually triggered isolated Ubuntu benchmark workflow. It builds
+  all three recorded source revisions with the same compiler, interleaves the fixed
+  cases, then measures pypbo/NumPy/Rust with all samples and equality checks retained.
+  This is a measurement change, not a strategy/kernel tuning iteration.
+- Command: `gh workflow run benchmark.yml --ref main`; retrieve its result artifact.
+- Result: pending. Keep every shared-M1 result; do not select its inflated ratio as
+  a headline. Source: `benchmarks/results/pbo_benchmark.json`; isolated artifacts
+  will be stored under `benchmarks/results/linux/` with the Actions run reference.
+- Reproduce native variants: `uv run --no-sync python -m benchmarks.build_variants runs/native-variants`.

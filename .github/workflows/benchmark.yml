@@ -1,0 +1,34 @@
+name: Isolated benchmark
+
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: 2
+      RAYON_NUM_THREADS: 2
+      OPENBLAS_NUM_THREADS: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --all-extras --group dev --group experiments --group bench
+      - name: build original, fused and final kernels
+        run: uv run --no-sync python -m benchmarks.build_variants runs/native-variants
+      - name: compare interleaved native kernels
+        run: uv run --no-sync python -m benchmarks.compare_kernels runs/native-variants --output benchmarks/results/kernel_interleaved.json
+      - name: compare pypbo, NumPy and Rust
+        run: uv run --no-sync python -m benchmarks.bench_pbo
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: isolated-benchmark
+          path: benchmarks/results/
