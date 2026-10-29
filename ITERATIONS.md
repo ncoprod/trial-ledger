@@ -318,3 +318,17 @@ Verification milestone: full suite 108 PASS in 8.99 s; Actions 40853488417 PASS.
   Values and intervals are unchanged. Full local suite: 110 passed; ruff clean.
 - A provenance wording edit exceeded the lint line limit in 09dfaf00; 04f9d05a
   restores lint. The failed CI run is retained (40858774253).
+
+### Interim documentation and analysis snapshot
+
+- Command: `uv run --no-sync python -m experiments.run analyze`;
+  `uv run --no-sync python -m experiments.run figures`.
+- Result: 176 analyzed receipts, 65 Codex episodes included. The NIM extension
+  is incomplete and explicitly labelled interim in README. Full-precision scores,
+  Wilson/cluster intervals and paired/counterfactual results are now committed.
+- Metadata: the early CLI pilot lacks historical source/launch provenance; its
+  ledger, submission, CLI version and call trace remain available. No unknown
+  source or hosted weight revision is invented.
+- Verification: 110 pytest and three cargo tests pass. The 941d2e49 milestone
+  passes all seven GitHub CI jobs (40859304489). Exported figures visually checked;
+  local README links resolve. Final NIM aggregation and final-main CI remain open.

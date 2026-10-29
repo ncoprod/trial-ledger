@@ -8,21 +8,23 @@ Ledger N = distinct return series logged (re-runs of the same configuration coun
 
 | agent | episodes | median evaluations logged | median ledger N | median N claimed | under-reported | ledger N / claimed (median, max) | median in-sample Sharpe of pick | claims Sharpe >= 1 | naive PSR pass [95% CI] | DSR (claimed N) pass | DSR (ledger N) pass [95% CI] | median DSR (claimed N, ledger N) | median PBO |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| gpt-6.1-sol | 60 | 30 | 30 | 30 | 0% | 1.00, 1.00 | 0.87 | 21% | 84% [73, 92] | 0% | 0% [0, 6] | 0.46, 0.46 | 0.56 |
 | nemotron-3-ultra-550b-a55b | 20 | 322 | 266 | 316 | 20% | 0.90, 1.16 | 1.01 | 55% | 95% [76, 99] | 0% | 0% [0, 16] | 0.27, 0.27 | 0.59 |
 | nemotron-3.5-lightning-30b-a3b | 20 | 210 | 168 | 151 | 40% | 0.99, 4.40 | 0.91 | 45% | 75% [53, 89] | 0% | 0% [0, 16] | 0.38, 0.31 | 0.58 |
-| gpt-oss-20b | 20 | 237 | 182 | 124 | 55% | 1.06, 9.69 | 0.86 | 15% | 85% [64, 95] | 5% | 5% [1, 24] | 0.42, 0.27 | 0.49 |
+| gpt-oss-20b | 31 | 227 | 179 | 142 | 42% | 1.00, 9.69 | 0.87 | 27% | 90% [74, 97] | 3% | 3% [1, 17] | 0.39, 0.28 | 0.48 |
 | random-search | 20 | 174 | 133 | 174 | 0% | 0.84, 0.94 | 0.77 | 10% | 80% [58, 92] | 0% | 0% [0, 16] | 0.33, 0.35 | 0.52 |
 
-All LLM episodes on null markets: n = 60; claimed Sharpe >= 1 in 38%; naive PSR pass 51/60 = 85% [74, 92]; DSR (claimed N) pass 2%; DSR (ledger N) pass 1/60 = 2% [0, 9].
+All LLM episodes on null markets: n = 128; claimed Sharpe >= 1 in 31%; naive PSR pass 110/128 = 86% [79, 91]; DSR (claimed N) pass 1%; DSR (ledger N) pass 1/128 = 1% [0, 4].
 
-Ledger N / claimed N: median 0.96, max 9.69, > 1 (under-reported) in 38% of episodes. Counting every logged evaluation including re-runs: median 1.17, max 12.38, > 1 in 72%.
+Ledger N / claimed N: median 1.00, max 9.69, > 1 (under-reported) in 19% of episodes. Counting every logged evaluation including re-runs: median 1.00, max 12.38, > 1 in 38%.
 
-Severe under-reporting (ledger N >= 3x claimed N): 10 of 60 episodes (gpt-oss-20b: 7, nemotron-3.5-lightning-30b-a3b: 3); in 7 of them the claimed N equals the number of tool calls made.
+Severe under-reporting (ledger N >= 3x claimed N): 10 of 128 episodes (gpt-oss-20b: 7, nemotron-3.5-lightning-30b-a3b: 3); in 7 of them the claimed N equals the number of tool calls made.
 
 ## BTCUSDT (in-sample 2018-01-01..2023-12-31, out-of-sample 2024-01-01..2026-09-30)
 
 | agent | episodes | median backtests logged | mean in-sample Sharpe of pick | mean OOS Sharpe of pick | naive PSR pass | DSR (ledger N) pass | median PBO |
 |---|---|---|---|---|---|---|---|
+| gpt-6.1-sol | 5 | 15 | 1.19 | 0.64 | 100% | 0% | 0.44 |
 | nemotron-3-ultra-550b-a55b | 5 | 214 | 1.33 | 0.64 | 100% | 0% | 0.41 |
 | nemotron-3.5-lightning-30b-a3b | 5 | 45 | 1.13 | 0.50 | 100% | 0% | 0.32 |
 | gpt-oss-20b | 5 | 49 | 1.19 | 0.70 | 100% | 0% | 0.41 |
@@ -34,6 +36,11 @@ Per-episode picks:
 
 | agent | rep | family | IS Sharpe | OOS Sharpe | DSR (ledger N) |
 |---|---|---|---|---|---|
+| gpt-6.1-sol | 0 | momentum | 1.35 | 0.78 | 0.76 |
+| gpt-6.1-sol | 1 | momentum | 1.27 | 0.72 | 0.71 |
+| gpt-6.1-sol | 2 | momentum | 1.12 | 0.57 | 0.45 |
+| gpt-6.1-sol | 3 | momentum | 1.12 | 0.57 | 0.57 |
+| gpt-6.1-sol | 4 | momentum | 1.12 | 0.57 | 0.62 |
 | nemotron-3-ultra-550b-a55b | 0 | ma_crossover | 1.40 | 0.82 | 0.15 |
 | nemotron-3-ultra-550b-a55b | 1 | momentum | 1.33 | 0.23 | 0.04 |
 | nemotron-3-ultra-550b-a55b | 2 | ma_crossover | 1.40 | 0.82 | 0.03 |
@@ -65,4 +72,27 @@ Per-episode picks:
 
 - ledgers verified (hash chain + anchored head): True
 - trials whose returns hash did not match a re-run from the logged spec: 0
-- episodes: 100; with a valid submitted strategy: 100; submitted strategy found in the agent's own ledger: 99
+- episodes: 176; with a valid submitted strategy: 173; submitted strategy found in the agent's own ledger: 172
+
+## CLI subjects and paired N tests
+
+Full-precision results and protocol: [paired_tests.json](paired_tests.json); [provenance.json](provenance.json). Threshold stays fixed at 0.95.
+
+| cohort | valid null picks | naive passes | ledger-N DSR passes | under-reported |
+|---|---|---|---|---|
+| nim | 70 | 61 | 1 | 24 |
+| cli | 58 | 49 | 0 | 0 |
+
+| model | paired episodes | claimed-only pass | ledger-only pass | exact McNemar p | median DSR(claimed)-DSR(ledger) | Wilcoxon Holm p |
+|---|---|---|---|---|---|---|
+| codex-cli/gpt-6.1-sol | 58 | 0 | 0 | 1 | 0 | 0.05388 |
+| nvidia/nemotron-3-ultra-550b-a55b | 20 | 0 | 0 | 1 | -0.01253 | 0.02876 |
+| nvidia/nemotron-3.5-lightning-30b-a3b | 20 | 0 | 0 | 1 | -0.0008799 | 0.8558 |
+| openai/gpt-oss-20b | 30 | 0 | 0 | 1 | -0.0004999 | 0.8558 |
+| random-search | 20 | 0 | 0 | 1 | -0.02449 | 0.0004429 |
+
+Incomplete/invalid episode receipts retained: 3. They are not replaced with the best logged strategy. Authentication and startup pilots are retained separately in `attempts/`.
+
+Wilson intervals describe episode proportions; models share market seeds. Market/seed cluster-bootstrap intervals are also recorded. Pooled iid significance is not claimed. Zero discordance does not establish equivalence.
+
+Exploratory threshold intervals and hypothetical undercount scenarios are reported separately in paired_tests.json. They do not replace the fixed 0.95 test or constitute observed agent claims.
