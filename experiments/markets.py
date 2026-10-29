@@ -137,6 +137,16 @@ def estimate_garch() -> GarchParams:
 
 
 def garch_returns(seed: int, n: int = N_NULL, burn: int = 500) -> np.ndarray:
+    # NumPy's Student-t sampler uses platform libm functions. Keep the original
+    # bytes as well as the fit: hash-based cache replay cannot tolerate 1-ULP drift.
+    if n == N_NULL and burn == 500:
+        with np.load(DATA.with_name("garch_markets.npz"), allow_pickle=False) as markets:
+            if f"seed_{seed}" in markets:
+                return markets[f"seed_{seed}"]
+    return generate_garch_returns(seed, n, burn)
+
+
+def generate_garch_returns(seed: int, n: int = N_NULL, burn: int = 500) -> np.ndarray:
     g = fit_garch()
     rng = np.random.default_rng([seed, 2])
     z = rng.standard_t(g.nu, size=n + burn) * math.sqrt((g.nu - 2) / g.nu)
