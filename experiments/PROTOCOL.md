@@ -33,7 +33,10 @@ knowledge of public BTC history from model pretraining. The final submitted cand
 alone is evaluated on that held-out window; later reproduction only repeats its
 arithmetic. No prompt, strategy, model or acceptance rule is revised from test
 performance. There is no separately tuned predictive model. CSCV partitions the
-research window; it is not another independent test set.
+research window; it is not another independent test set. The candidate universe
+was discovered using the whole research window, and agent search is not rerun
+inside each CSCV fold. PBO therefore describes the logged universe conditionally;
+it does not validate end-to-end agent generalisation.
 
 Both synthetic markets have zero conditional mean before costs. Signflip uses
 bootstrapped BTC magnitudes and independent symmetric signs; GARCH uses symmetric

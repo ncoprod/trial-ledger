@@ -375,3 +375,9 @@ Verification milestone: full suite 108 PASS in 8.99 s; Actions 40853488417 PASS.
 - Re-run: experiment/paired tests plus ruff. Final artifact regeneration will use
   the corrected CSV precision; no strategy or inference run is repeated.
 - Source: `experiments/analyze.py`, `tests/test_experiment.py`; final `episodes.csv`.
+
+Iteration 20 recovery outcome: GARCH seed 17 completed with 270 records; all 169
+pre-reboot strategy/return fingerprints are identical. One provider timeout
+recovered with backoff. The checkpoint includes the completed receipt reference.
+Iteration 21 verification outcome: 11 focused tests PASS; ruff check/format PASS.
+Main cfdcaaf1 passes all GitHub CI jobs (40876756870).
