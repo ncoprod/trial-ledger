@@ -73,13 +73,21 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist
           manylinux: auto
+      - name: build source distribution with the same notices
+        if: matrix.os == 'ubuntu-latest'
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: rust
+          command: sdist
+          args: --out dist
       - uses: astral-sh/setup-uv@v6
       - name: install the built wheel and check NumPy parity
         run: |
           uv sync --extra mcp --group dev --group experiments
+          uv run --no-sync python rust/check_licenses.py rust/dist/*
           uv pip install rust/dist/*.whl
           uv run --no-sync pytest tests/test_rust_parity.py
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.os }}-${{ matrix.target }}
-          path: rust/dist/*.whl
+          path: rust/dist/*

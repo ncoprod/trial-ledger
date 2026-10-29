@@ -66,7 +66,25 @@ conditional mean. No Yahoo, Kaggle or other market dataset is used by this repos
   [arXiv:2608.27734](https://arxiv.org/abs/2608.27734), is related work, not an
   implementation or dataset dependency. Its text/code is not redistributed.
 
-Runtime libraries are ordinary dependencies, not vendored: NumPy and SciPy
-(BSD-3-Clause), MCP Python SDK (MIT), PyO3 (MIT OR Apache-2.0), rust-numpy (BSD-2-Clause),
-and rayon (MIT OR Apache-2.0). Their distributions carry their own notices. Dev and
-benchmark dependencies are declared separately in `pyproject.toml` / `uv.lock`.
+NumPy and SciPy (BSD-3-Clause) and the MCP Python SDK (MIT) remain separately
+installed runtime dependencies whose distributions carry their own notices.
+Rust dependencies are statically incorporated into the native extension: their
+full upstream licence and copyright texts are bundled in every wheel and source
+distribution under `licenses/THIRD_PARTY_LICENSES/` (source archives retain the
+same directory without the wheel prefix). This includes rust-numpy (BSD-2-Clause),
+PyO3/rayon/crossbeam (MIT OR Apache-2.0), target-lexicon (Apache-2.0 WITH
+LLVM-exception), and unicode-ident ((MIT OR Apache-2.0) AND Unicode-3.0).
+
+The exact 30-package locked tree, upstream repositories, authors, licence
+expressions, crate archive checksums and notice-file hashes are listed in
+[`rust/THIRD_PARTY_LICENSES/manifest.json`](rust/THIRD_PARTY_LICENSES/manifest.json).
+`python rust/collect_licenses.py` copies full notices from published crates.io
+archives after checking their SHA-256 against `rust/Cargo.lock`; no licence text
+is synthesized. Both licence options are retained where supplied. Unicode's
+additional notice and the LLVM exception are included in full. Build-time
+packages are included conservatively alongside linked dependencies.
+
+`python rust/check_licenses.py <wheel-or-sdist> ...` verifies every notice's exact
+bytes inside built artifacts. CI checks both platform wheels and a Linux source
+distribution before artifact upload. Dev and benchmark dependencies are declared
+separately in `pyproject.toml` / `uv.lock`.

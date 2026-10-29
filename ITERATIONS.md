@@ -619,3 +619,19 @@ version. The fresh Claude Haiku pilot again failed authentication before a singl
 backtest, so its receipt is stored under causal-v2/attempts/. A small runner fix
 routes future zero-evaluation auth failures there automatically. Codex and NIM
 jobs remain resumable; NIM clients acquire only the shared atomic slots.
+
+M6 implementation: the collector covers all 30 locked native packages, including
+full BSD, MIT, Apache/LLVM and Unicode notices. An initial approach expected
+.cargo-checksum.json files that this local cache does not contain; switched to
+verifying the published .crate archive hash directly against Cargo.lock, then
+reading notices from that archive. No unverified licence text was substituted.
+Local `uv run --no-sync maturin` failed because the CLI is not installed in the
+project environment; use the declared build backend via `uv build rust` instead.
+Wheel/sdist inspections and both-platform CI checks follow. Raw local build log:
+ignored `runs/review-wheel-build.log`.
+
+M6 local verification: `CARGO_BUILD_JOBS=2 uv build rust --out-dir runs/review-dist`
+PASS; `python rust/check_licenses.py runs/review-dist/*.whl
+runs/review-dist/*.tar.gz` PASS for 59 full notice files in both the macOS arm64
+wheel and source archive. Ruff check/format PASS (52 Python files). Exact CI
+checks for the Linux and macOS artifacts are added before upload.
