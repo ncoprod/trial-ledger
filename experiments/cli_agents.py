@@ -303,6 +303,10 @@ def run(agent: str, kind: str, seed: int, rep: int = 0, timeout: int = 1800) -> 
             (out / "calls.jsonl").write_text("".join(json.dumps(c) + "\n" for c in calls))
             record["tool_calls"] = sum(c["tool"] in {"run_backtest", "run_sweep"} for c in calls)
             episode.write_text(json.dumps(record, indent=2) + "\n")
+        if status == "auth_failed" and not recs:
+            target = RESULTS / "attempts" / model_id.replace("/", "__") / run_id
+            target.parent.mkdir(parents=True, exist_ok=True)
+            out.rename(target)
         return record
 
 
