@@ -178,3 +178,18 @@ before acquiring it; no other repo's lock was removed.
   five BTC runs (seeds 0-4). This plan is fixed before final cohort analysis and
   retains invalid submissions. GARCH inputs 0-19 stay byte-identical; 20-29 are
   archived before use. No strategy/prompt tuning or held-out BTC feedback.
+
+## Iteration 12 — audit edge cases and timing-test diagnosis
+
+- Hypothesis: scored hook trials without a return hash can still produce a misleading
+  partial PBO, even after missing-object detection was added.
+- Change: treat a missing hash as a missing series; exercise both cases. Use CPU time
+  for the existing 100 ms parser-work guard so scheduler contention does not masquerade
+  as parser complexity. Preserve the same time budget and pathological input cases.
+- Command: `uv run --no-sync pytest`; then `uv run --no-sync pytest tests/test_cli_hooks.py`.
+- Result: initial full run FAIL (104 pass, two wall-clock guards fail under concurrent
+  benchmark load); focused rerun PASS (34 cases). This was a measurement failure, not
+  a removed algorithmic performance requirement.
+- Change: provenance now captures `sys.orig_argv`, preserving Python's `-m` invocation;
+  earlier snapshots omitted that flag. Fixed launch commands remain in this log.
+- Source: `tests/test_cli_hooks.py`, `experiments/PROTOCOL.md`; final suite rerun pending.

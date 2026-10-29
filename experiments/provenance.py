@@ -18,7 +18,7 @@ def provenance(config: dict[str, Any]) -> dict[str, Any]:
         (ROOT / "src/trial_ledger").glob("*.py")
     )
     return {
-        "command": shlex.join(["python", *sys.argv]),
+        "command": shlex.join(sys.orig_argv),
         "git_commit": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
         ).strip(),

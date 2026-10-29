@@ -74,12 +74,11 @@ def pbo_from_ledger(
     series = []
     missing = 0
     for r in trials:
-        if r.get("returns_hash"):
-            arr = ledger.load_returns(r["returns_hash"])
-            if arr is not None:
-                series.append(arr)
-            else:
-                missing += 1
+        arr = ledger.load_returns(r["returns_hash"]) if r.get("returns_hash") else None
+        if arr is not None:
+            series.append(arr)
+        else:
+            missing += 1
     if missing:
         return (
             None,

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 import numpy as np
 from scipy.stats import binomtest, wilcoxon
@@ -67,7 +67,18 @@ def main(rows: list[dict] | None = None) -> None:
     for cohort, rs in cohorts.items():
         valid = [r for r in rs if r.get("psr0") is not None]
         n = len(valid)
-        result = {"episodes": n}
+        attempts = [
+            r
+            for r in rows
+            if r["market"] != "btc"
+            and r["model"] != "random-search"
+            and ("-cli/" in r["model"]) == (cohort == "cli")
+        ]
+        result = {
+            "attempts": len(attempts),
+            "episodes": n,
+            "statuses": dict(Counter(r["status"] for r in attempts)),
+        }
         for key in ("psr0", "dsr_claimed", "dsr_ledger"):
             scored = [r for r in valid if r.get(key) is not None]
             k = sum(r[key] > THRESH for r in scored)

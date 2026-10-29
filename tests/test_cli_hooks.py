@@ -38,9 +38,13 @@ def test_report_dedups_identical_reruns(tmp_path):
     assert rep.n_records == 4 and rep.n_trials == 2
 
 
-def test_report_refuses_pbo_from_partial_trial_universe(noisy_ledger):
-    record = noisy_ledger.records()[0]
-    (noisy_ledger.returns_dir / f"{record['returns_hash']}.npz").unlink()
+@pytest.mark.parametrize("missing", ["object", "hash"])
+def test_report_refuses_pbo_from_partial_trial_universe(noisy_ledger, missing):
+    if missing == "object":
+        record = noisy_ledger.records()[0]
+        (noisy_ledger.returns_dir / f"{record['returns_hash']}.npz").unlink()
+    else:
+        noisy_ledger.append(strategy={"missing": True}, sharpe=0.1, n_obs=800)
     report = build_report(noisy_ledger)
     assert report.pbo is None
     assert report.pbo_n_trials is None
@@ -316,8 +320,9 @@ def test_1mb_command_is_handled_fast(name, monkeypatch):
     monkeypatch.setenv(hooks.CAPTURE_ENV, "1")
     text = PATHOLOGICAL[name]
     assert len(text) >= 1_000_000
-    t0 = time.perf_counter()
+    # Bound parser work, excluding time when a shared CI machine deschedules us.
+    t0 = time.process_time()
     fields = hooks.command_fields(text)
     hooks.code_hash_for_command(text)
-    assert time.perf_counter() - t0 < 0.1
+    assert time.process_time() - t0 < 0.1
     assert len(fields["command_preview"]) <= hooks.PREVIEW_CHARS + 4
