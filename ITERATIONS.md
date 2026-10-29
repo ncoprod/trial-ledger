@@ -420,3 +420,13 @@ remaining episodes. The full model now has the prespecified 40 null episodes
 checkpoint from the earlier serial-runner fix also matches the completed
 signflip seed-12 trial fingerprints. These are replayed prefixes, not new
 independent selections. Lightning and Ultra remain queued for shared NIM slots.
+
+Gpt-oss-complete interim refresh: `uv run --no-sync python -m experiments.store_returns`
+then `uv run --no-sync python -m experiments.run reproduce` both exit 0. All 185
+receipts replay/audit without mismatches; 26,157 distinct per-ledger return series
+verify. The NIM snapshot has 80 attempts, 78 valid picks, 68 naive passes, one
+pass under each DSR, and 32/80 under-reports. Both invalid gpt-oss answers
+(signflip seeds 11 and 16) retain their claims. The other 40 planned NIM episodes
+are queued, so README remains explicitly interim. Sources: `episodes.json`,
+`paired_tests.json`, `returns_integrity.json`, `provenance.json`; all artifact
+and episode hashes verified, all three exported figures inspected.

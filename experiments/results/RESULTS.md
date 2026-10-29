@@ -11,14 +11,14 @@ Ledger N = distinct return series logged (re-runs of the same configuration coun
 | gpt-6.1-sol | 60 | 30 | 30 | 30 | 0% | 1.00, 1.00 | 0.87 | 21% | 84% [73, 92] | 0% | 0% [0, 6] | 0.46, 0.46 | 0.56 |
 | nemotron-3-ultra-550b-a55b | 20 | 322 | 266 | 316 | 20% | 0.90, 1.16 | 1.01 | 55% | 95% [76, 99] | 0% | 0% [0, 16] | 0.27, 0.27 | 0.59 |
 | nemotron-3.5-lightning-30b-a3b | 20 | 210 | 168 | 151 | 40% | 0.99, 4.40 | 0.91 | 45% | 75% [53, 89] | 0% | 0% [0, 16] | 0.38, 0.31 | 0.58 |
-| gpt-oss-20b | 31 | 227 | 179 | 142 | 42% | 1.00, 9.69 | 0.87 | 27% | 90% [74, 97] | 3% | 3% [1, 17] | 0.39, 0.28 | 0.48 |
+| gpt-oss-20b | 40 | 229 | 176 | 142 | 50% | 1.01, 9.69 | 0.86 | 24% | 89% [76, 96] | 3% | 3% [0, 13] | 0.38, 0.28 | 0.49 |
 | random-search | 20 | 174 | 133 | 174 | 0% | 0.84, 0.94 | 0.77 | 10% | 80% [58, 92] | 0% | 0% [0, 16] | 0.33, 0.35 | 0.52 |
 
-All LLM episodes on null markets: n = 128; claimed Sharpe >= 1 in 31%; naive PSR pass 110/128 = 86% [79, 91]; DSR (claimed N) pass 1%; DSR (ledger N) pass 1/128 = 1% [0, 4].
+Valid LLM null-market picks: n = 136; claimed Sharpe >= 1 in 30%; naive PSR pass 117/136 = 86% [79, 91]; DSR (claimed N) pass 1%; DSR (ledger N) pass 1/136 = 1% [0, 4].
 
-Ledger N / claimed N: median 1.00, max 9.69, > 1 (under-reported) in 19% of episodes. Counting every logged evaluation including re-runs: median 1.00, max 12.38, > 1 in 38%.
+Among these valid picks, ledger N / claimed N: median 1.00, max 9.69, > 1 (under-reported) in 23% of episodes. Counting every logged evaluation including re-runs: median 1.00, max 12.38, > 1 in 42%.
 
-Severe under-reporting (ledger N >= 3x claimed N): 10 of 128 episodes (gpt-oss-20b: 7, nemotron-3.5-lightning-30b-a3b: 3); in 7 of them the claimed N equals the number of tool calls made.
+Severe under-reporting (ledger N >= 3x claimed N): 11 of 136 episodes (gpt-oss-20b: 8, nemotron-3.5-lightning-30b-a3b: 3); in 8 of them the claimed N equals the number of tool calls made.
 
 ## BTCUSDT (in-sample 2018-01-01..2023-12-31, out-of-sample 2024-01-01..2026-09-30)
 
@@ -72,26 +72,28 @@ Per-episode picks:
 
 - ledgers verified (hash chain + anchored head): True
 - trials whose returns hash did not match a re-run from the logged spec: 0
-- episodes: 176; with a valid submitted strategy: 173; submitted strategy found in the agent's own ledger: 172
+- episodes: 185; with a valid submitted strategy: 181; submitted strategy found in the agent's own ledger: 180
 
 ## CLI subjects and paired N tests
 
 Full-precision results and protocol: [paired_tests.json](paired_tests.json); [provenance.json](provenance.json). Threshold stays fixed at 0.95.
 
-| cohort | valid null picks | naive passes | ledger-N DSR passes | under-reported |
+| cohort | valid null picks | naive passes | ledger-N DSR passes | under-reported / usable claims |
 |---|---|---|---|---|
-| nim | 70 | 61 | 1 | 25 |
-| cli | 58 | 49 | 0 | 0 |
+| nim | 78 | 68 | 1 | 32/80 |
+| cli | 58 | 49 | 0 | 0/60 |
+
+Acceptance uses valid picks; count accuracy uses all available positive claims.
 
 | model | paired episodes | claimed-only pass | ledger-only pass | exact McNemar p | median DSR(claimed)-DSR(ledger) | Wilcoxon Holm p |
 |---|---|---|---|---|---|---|
 | codex-cli/gpt-6.1-sol | 58 | 0 | 0 | 1 | 0 | 0.05388 |
 | nvidia/nemotron-3-ultra-550b-a55b | 20 | 0 | 0 | 1 | -0.01253 | 0.02876 |
-| nvidia/nemotron-3.5-lightning-30b-a3b | 20 | 0 | 0 | 1 | -0.0008799 | 0.8558 |
-| openai/gpt-oss-20b | 30 | 0 | 0 | 1 | -0.0004999 | 0.8558 |
+| nvidia/nemotron-3.5-lightning-30b-a3b | 20 | 0 | 0 | 1 | -0.0008799 | 0.6475 |
+| openai/gpt-oss-20b | 38 | 0 | 0 | 1 | 0.000534 | 0.4145 |
 | random-search | 20 | 0 | 0 | 1 | -0.02449 | 0.0004429 |
 
-Incomplete/invalid episode receipts retained: 3. They are not replaced with the best logged strategy. Authentication and startup pilots are retained separately in `attempts/`.
+Incomplete/invalid episode receipts retained: 4. They are not replaced with the best logged strategy. Authentication and startup pilots are retained separately in `attempts/`.
 
 Wilson intervals describe episode proportions; models share market seeds. Market/seed cluster-bootstrap intervals are also recorded. Pooled iid significance is not claimed. Zero discordance does not establish equivalence.
 

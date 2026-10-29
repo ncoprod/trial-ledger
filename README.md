@@ -41,7 +41,7 @@ live. Both search predefined rule families, rather than arbitrary strategy code.
 | Subject | Null attempts (valid picks) | Naive PSR passes [Wilson 95% CI] | Claimed-N DSR passes | Ledger-N DSR passes [Wilson 95% CI] | Under-reported N | Source |
 |---|---:|---|---:|---|---:|---|
 | Codex CLI | 60 (58) | 49/58 [73.07%, 91.62%] | 0/58 | 0/58 [0.00%, 6.21%] | 0/60 | [JSON](experiments/results/paired_tests.json) |
-| NIM tool loops | 71 (70) | 61/70 [77.34%, 93.09%] | 1/70 | 1/70 [0.25%, 7.66%] | 25/71 | [JSON](experiments/results/paired_tests.json) |
+| NIM tool loops | 80 (78) | 68/78 [77.98%, 92.88%] | 1/78 | 1/78 [0.23%, 6.91%] | 32/80 | [JSON](experiments/results/paired_tests.json) |
 
 **Interim snapshot:** the fixed NIM extension is still running. All completed outcomes are retained; the final sample plan is in [PROTOCOL.md](experiments/PROTOCOL.md).
 
@@ -109,7 +109,7 @@ trial-ledger --dir experiments/results/runs/openai__gpt-oss-20b/signflip-s0-r0/l
 trial-ledger --dir experiments/results/runs/openai__gpt-oss-20b/signflip-s0-r0/ledger pbo
 ```
 
-The latest restoration snapshot verifies **176 ledgers** and **24,477 distinct per-ledger trial series**, with **20,807 shared compressed objects**. [Integrity receipt and command](experiments/results/returns_integrity.json). The CLI reads these objects directly; [a recorded PBO result](experiments/results/pbo_cli_example.json) is committed alongside the ledgers.
+The latest restoration snapshot verifies **185 ledgers** and **26,157 distinct per-ledger trial series**, with **22,253 shared compressed objects**. [Integrity receipt and command](experiments/results/returns_integrity.json). The CLI reads these objects directly; [a recorded PBO result](experiments/results/pbo_cli_example.json) is committed alongside the ledgers.
 
 Return objects are compressed and addressed by the SHA-256 of canonical float64
 content; loading verifies decompressed bytes. Old uncompressed objects remain
