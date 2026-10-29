@@ -209,13 +209,14 @@ def format_report(rep: Report, threshold: float = 0.95) -> str:
         ),
         f"PSR(SR>0), ignores N        {_f(rep.psr0)}  [{verdict_psr} at {threshold}]",
         f"E[max SR | N, null]         {_f(rep.sr0_ledger, '.4f')} per period",
-        f"DSR with ledger N={rep.n_trials + (rep.n_unscored or 0):<6}   {_f(rep.dsr_ledger)}"
-        f"  [{verdict_dsr}]",
+        f"{f'DSR with ledger N={rep.n_trials + (rep.n_unscored or 0)}':<28}"
+        f"{_f(rep.dsr_ledger)}  [{verdict_dsr}]",
     ]
     if rep.claimed_n is not None:
-        lines.append(f"DSR with claimed N={rep.claimed_n:<5}   {_f(rep.dsr_claimed)}")
+        lines.append(f"{f'DSR with claimed N={rep.claimed_n}':<28}{_f(rep.dsr_claimed)}")
     if rep.n_effective is not None:
-        lines.append(f"DSR with effective N={rep.n_effective:<6.1f} {_f(rep.dsr_effective)}")
+        label = f"DSR with effective N={rep.n_effective:.1f}"
+        lines.append(f"{label:<28}{_f(rep.dsr_effective)}")
     if rep.pbo is not None:
         lines.append(
             f"PBO (CSCV, S={rep.pbo_partitions}, {rep.pbo_n_trials} trials)  {_f(rep.pbo)}"
