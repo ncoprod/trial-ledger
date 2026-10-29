@@ -13,6 +13,8 @@ from .markets import make_market
 
 
 def main() -> None:
+    from .provenance import provenance
+
     counts = {"ledgers": 0, "trials": 0, "objects_restored": 0}
     for path in sorted((RESULTS / "runs").glob("*/*/episode.json")):
         ep = json.loads(path.read_text())
@@ -39,6 +41,12 @@ def main() -> None:
         print(path.parent.name, counts, flush=True)
     counts["unique_compressed_objects"] = len(list((RESULTS / "returns").glob("*.npz")))
     counts["compressed_bytes"] = sum(p.stat().st_size for p in (RESULTS / "returns").glob("*.npz"))
+    counts["provenance"] = provenance(
+        {
+            "hash_check": "every distinct stored trial",
+            "storage": "np.savez_compressed float64, SHA-256",
+        }
+    )
     (RESULTS / "returns_integrity.json").write_text(json.dumps(counts, indent=2) + "\n")
 
 

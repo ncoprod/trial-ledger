@@ -87,3 +87,41 @@ Iteration 2 Linux outcome: PASS, all CI jobs green, Actions 40847620374 at 95051
   `uv run --no-sync python -m experiments.store_returns`.
 - Result: 20 focused tests PASS; historical hydration running. Source:
   `experiments/results/returns_integrity.json` once hydration completes.
+
+## Iteration 6 — rayon scratch-allocation granularity
+
+- Hypothesis: fewer rayon leaves reduce per-task allocations and scheduling cost.
+- Change: minimum split chunk size derived from split count and worker count.
+- Command: `RAYON_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 uv run --no-sync python -m benchmarks.profile_core --output benchmarks/results/kernel_before.json`;
+  rerun with `--compare benchmarks/results/kernel_before.json --output benchmarks/results/kernel_chunked.json` after rebuilding.
+- Result: all three output arrays byte-identical on every fixed input. Mixed timing:
+  small 1000x50 case median 0.106 -> 0.076 ms; largest case 87.54 -> 87.97 ms.
+  No broad speedup claim. Three cargo and 15 targeted Python tests pass.
+- Source: `benchmarks/results/kernel_before.json`, `kernel_chunked.json` (25 samples/case).
+
+## Iteration 7 — fuse OOS scoring and ranking
+
+- Hypothesis: removing one scratch vector and its memory pass improves larger cases.
+- Change: compute the selected OOS score, then rank directly while scoring columns.
+- Command: same fixed-input profile, `--output benchmarks/results/kernel_fused_rank.json`.
+- Result: pending; reject this candidate if the large cases regress without benefit.
+- Source: `benchmarks/results/kernel_fused_rank.json`.
+
+Iteration 7 result: PASS on identical-output checks. Largest fixed-input median
+87.54 -> 55.58 ms (two rayon threads); 2190x500: 0.673 -> 0.572 ms. Other cases mixed.
+All five cases retain byte-identical logits, IS-best and OOS-best arrays. Keep this
+candidate and rerun the full pypbo/NumPy/Rust comparison before updating headlines.
+
+## Iteration 8 — paired N tests and live subjects
+
+- Hypothesis: more episodes tighten intervals; accurate self-reports can leave the
+  0.95 decisions unchanged even when the underlying DSR values differ.
+- Change: expand NIM to seeds 0-19; run Codex CLI on the same two market types;
+  add exact McNemar, Wilcoxon with Holm correction across models, Wilson intervals,
+  exploratory threshold boundaries and explicitly hypothetical undercount scenarios.
+- Commands: `python -m experiments.run agents --seeds 10-19 --markets signflip garch --btc-reps 0 --workers 1 --resume`;
+  `python -m experiments.cli_agents --agent codex --seeds 0-19 --markets signflip garch --reps 1`.
+- Result: running. NIM waits for and holds one shared mkdir slot, serial requests;
+  all cached responses retained. Full local Python suite: 104 PASS.
+- Source: committed per-episode receipts, `episodes.json`, `paired_tests.json` once
+  regenerated. Models' hosted weight revisions are unavailable, explicitly recorded.

@@ -57,6 +57,16 @@ def last_json(text: str) -> dict | None:
 def run(agent: str, kind: str, seed: int, rep: int = 0, timeout: int = 1800) -> dict:
     model = MODELS[agent]
     model_id = f"{agent}-cli/{model}"
+    receipt = provenance(
+        {
+            "model": model,
+            "seed": seed,
+            "market": kind,
+            "rep": rep,
+            "tool_budget": TOOL_BUDGET,
+            "reasoning_effort": "medium" if agent == "codex" else None,
+        }
+    )
     run_id = f"{kind}-s{seed}-r{rep}"
     out = RESULTS / "runs" / model_id.replace("/", "__") / run_id
     episode = out / "episode.json"
@@ -264,16 +274,7 @@ def run(agent: str, kind: str, seed: int, rep: int = 0, timeout: int = 1800) -> 
             "cli_version": subprocess.check_output([agent, "--version"], text=True).strip(),
             "reasoning_effort": "medium" if agent == "codex" else None,
             "protocol": "mcp-restricted-v1",
-            "provenance": provenance(
-                {
-                    "model": model,
-                    "seed": seed,
-                    "market": kind,
-                    "rep": rep,
-                    "tool_budget": TOOL_BUDGET,
-                    "reasoning_effort": "medium" if agent == "codex" else None,
-                }
-            ),
+            "provenance": receipt,
             "prompt": PROMPT,
             "hook_events": sum(1 for _ in (logdir / "hooks.jsonl").open())
             if (logdir / "hooks.jsonl").exists()
@@ -284,6 +285,16 @@ def run(agent: str, kind: str, seed: int, rep: int = 0, timeout: int = 1800) -> 
             shutil.copyfile(logdir / "hooks.jsonl", out / "capture.jsonl")
         # Final text contains only the subject's answer, no CLI diagnostic or auth output.
         (out / "answer.txt").write_text(answer)
+        if agent == "codex":
+            calls = [
+                json.loads(line)["item"]
+                for line in raw.splitlines()
+                if line.startswith('{"type":"item.completed"')
+                and json.loads(line).get("item", {}).get("type") == "mcp_tool_call"
+            ]
+            (out / "calls.jsonl").write_text("".join(json.dumps(c) + "\n" for c in calls))
+            record["tool_calls"] = sum(c["tool"] in {"run_backtest", "run_sweep"} for c in calls)
+            episode.write_text(json.dumps(record, indent=2) + "\n")
         return record
 
 

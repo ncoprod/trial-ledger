@@ -119,6 +119,14 @@ def analyze_episode(ep_dir: Path) -> dict[str, Any]:
     row.update(
         {
             "selected_family": selected["family"],
+            "selected_strategy": selected,
+            "selected_moments": {
+                "sharpe": sr,
+                "n_obs": n,
+                "skew": sk,
+                "kurtosis": ku,
+                "var_trials_sharpe": var_sr,
+            },
             "is_sharpe": res.sharpe_ann,
             "claims_target": reported is not None and reported >= 1.0,
             "psr0": probabilistic_sharpe_ratio(sr, n, 0.0, sk, ku),
@@ -235,6 +243,18 @@ def _fmt(v: Any) -> Any:
 
 
 def write_tables(rows: list[dict[str, Any]], summary: list[dict[str, Any]]) -> None:
+    from .provenance import provenance
+
+    (RESULTS / "episodes.json").write_text(
+        json.dumps(
+            {
+                "provenance": provenance({"partitions": PBO_PARTITIONS, "threshold": THRESH}),
+                "rows": rows,
+            },
+            indent=2,
+        )
+        + "\n"
+    )
     with open(RESULTS / "episodes.csv", "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=COLUMNS, extrasaction="ignore")
         w.writeheader()

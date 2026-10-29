@@ -108,6 +108,9 @@ def cmd_analyze(args) -> int:
     rows = collect(args.models)
     summary = summarise(rows)
     write_tables(rows, summary)
+    from .paired_tests import main as paired_tests
+
+    paired_tests(rows)
     write_results_md()
     return 0
 
@@ -187,6 +190,9 @@ def cmd_reproduce(args) -> int:
     rc = cmd_replay_check(args)
     cmd_analyze(argparse.Namespace(models=None))
     cmd_figures(args)
+    from .provenance import write_manifest
+
+    write_manifest()
     return rc
 
 
