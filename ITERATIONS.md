@@ -596,7 +596,7 @@ version is not a candidate eligible for headline selection.
 | M3 collapsed emissions | Deduplicate only proven equal return hashes within a coherent cohort; otherwise each scored evaluation counts | Actual emit/exec regression with changed script content, scores and repeated metadata | 5dcf789a |
 | M4 mixed cohorts | Require dataset/time-axis/frequency/length identity; no majority-length selection; explicit legacy alignment assertion remains labelled | Mixed dataset, date axis, frequency and length rejection tests | 5dcf789a |
 | M5 failed verification | Abort analysis/public report on chain/replay failure; stop reproduce before any writes | Corrupted score, return hash, anchored tail, and no-publication regressions | 5dcf789a |
-| M6 native licences | Collect locked dependency notices, package wheel/sdist bundles, inspect both CI artifacts | pending | pending |
+| M6 native licences | Collect locked dependency notices, package wheel/sdist bundles, inspect both CI artifacts | Local wheel/sdist exact-byte checks PASS; both-platform CI pending | 4c36f6e5 |
 | m7 window boundaries | Initial equity included in drawdown; slice actual full-history turnover | First OOS loss and unchanged holdings regression | 5dcf789a |
 | m8 unused cache | Delete unused returns_by_seq and its numpy import | Existing MCP/service tests | 5dcf789a |
 
@@ -635,3 +635,45 @@ PASS; `python rust/check_licenses.py runs/review-dist/*.whl
 runs/review-dist/*.tar.gz` PASS for 59 full notice files in both the macOS arm64
 wheel and source archive. Ruff check/format PASS (52 Python files). Exact CI
 checks for the Linux and macOS artifacts are added before upload.
+
+Review CI/push iteration: the first combined upload failed with HTTP 408. Pushing
+the smaller core commit with HTTP/1.1 and a bounded request buffer succeeded;
+the result checkpoint and licence bundle are retried separately. Core CI
+40941478818 passes lint, Python, both Rust jobs and both wheels; PBO fails because
+that smaller commit precedes the causal-v2 baseline ledger. The next checkpoint
+contains the required ledger and compressed objects; no statistic is weakened.
+
+Paper preparation: eight references verified against Crossref metadata or the
+arXiv API. The first GARCH request returned 429, then succeeded on retry. A Holm
+identifier returned Crossref 404, so no unverified bibliography entry is added;
+the adjustment algorithm is stated explicitly. Sources and failed checks are
+retained in `paper/reference_verification.json`.
+
+Scheduling iteration: run the already fixed five BTC Codex sessions in a second,
+isolated, serial queue while the 100 null sessions continue. This changes only
+scheduling, not prompts, seeds, budgets or analysis. The original wrapper later
+skips completed BTC receipts. No BTC metric is inspected to tune a search.
+Command: `uv run --no-sync python -m experiments.cli_agents --agent codex
+--seeds 0-4 --markets btc --reps 1`; launch/log/exit receipts are under ignored
+`runs/v2-codex-btc*`. No NIM slot is used by a Codex CLI process.
+
+Native notice guard: compare the notice manifest's package versions and archive
+hashes directly with Cargo.lock, so a dependency update cannot silently bypass
+the bundle. Existing wheel and source archive both still PASS the full check.
+
+Paper inputs: `paper/make_tables.py` reads committed Git blobs, refuses the
+incomplete fixed sample, and generates all empirical macros, tables, the
+acceptance plot and a SHA-256 input/output manifest. The paper distinguishes
+observed claims from every exploratory threshold and counterfactual-count case.
+`uv run --no-sync ruff check .` and `ruff format --check .` PASS (53 files).
+Numerical generation and PDF compilation wait for the complete committed sample;
+no provisional or superseded counts are substituted into the draft.
+
+Transport diagnosis: buffered HTTP/1.1, HTTP/2 and a small buffered object upload
+all returned HTTP 408; the existing SSH identity has no access to this private
+repository. A filtered diagnostic (no authentication headers or data logged)
+successfully uploaded a temporary object-staging branch with HTTP/1.1 and
+`http.postBuffer=0`. The full original main history is now retried with those
+settings. No history was rewritten or force-pushed. The temporary branch is
+removed once main is synchronized. Logs are under ignored `runs/review-push*`
+and `runs/trace-upload.log`.
