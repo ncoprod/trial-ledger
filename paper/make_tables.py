@@ -200,6 +200,7 @@ def main():
         "lrrrr",
     )
     model_rows = []
+    acceptance_rows = []
     for model, rows in by_model.items():
         null = [r for r in rows if r["market"] != "btc"]
         valid = [r for r in null if r["submitted_valid"] and r["status"] == "ok"]
@@ -215,6 +216,12 @@ def main():
                 f"{under}/{len(claims)}",
             ]
         )
+        acceptance = [NAMES[model]]
+        for key in ("psr0", "dsr_claimed", "dsr_ledger"):
+            scored = [r for r in valid if r.get(key) is not None]
+            passes = sum(r[key] > paired["provenance"]["config"]["threshold"] for r in scored)
+            acceptance.append(f"{passes}/{len(scored)}")
+        acceptance_rows.append(acceptance)
     table(
         "models",
         "Null attempts, valid submissions and count accounting. Medians "
@@ -222,6 +229,15 @@ def main():
         ["Subject", "Attempts", "Valid", "Median $N_L$", "Median $N_C$", "Under-reports"],
         model_rows,
         "lrrrrr",
+    )
+    table(
+        "model_acceptance",
+        "Within-model null acceptance, including the random-search control. "
+        "Fractions use valid completed picks with the corresponding statistic; "
+        "failed attempts are not rejections.",
+        ["Subject", "Naive PSR", "DSR claimed $N$", "DSR ledger $N$"],
+        acceptance_rows,
+        "lrrr",
     )
     table(
         "paired",
