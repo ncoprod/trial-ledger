@@ -1,5 +1,9 @@
 # trial-ledger
 
+- **What:** Audit AI-agent backtests with a tamper-evident trial ledger.
+- **Result:** Codex null picks: **86/100** pass naive PSR; **0/100** pass ledger-N DSR. [Results](experiments/results/causal-v2/paired_tests.json).
+- **Run:** `uv sync --extra mcp --group experiments && uv run python -m experiments.run reproduce` ([setup](#reproduce)).
+
 [Paper (PDF)](paper/main.pdf) · [LaTeX and generated inputs](paper/) · [Protocol](experiments/PROTOCOL.md)
 
 **Count the backtests your AI agent actually ran.**
@@ -13,7 +17,7 @@ The NIM replication accepts **109/118 naive** versus
 **65/117 positive null-market claims**, with a maximum ledger/claim
 ratio of **15.640×**. [paired results](experiments/results/causal-v2/paired_tests.json).
 
-The Rust CSCV kernel is **182–1,135× faster than pypbo** on the memory-feasible
+The Rust CSCV kernel is **182–1,136× faster than pypbo** on the memory-feasible
 Linux cases, with checked outputs. [Benchmark and conditions](benchmarks/results/linux/pbo_benchmark.json).
 
 `trial-ledger` captures backtests through MCP, shell hooks or an exec wrapper,
@@ -160,6 +164,26 @@ as unscored attempts. See [capture implementation](src/trial_ledger/hooks.py).
 
 ## Reproduce
 
+Install the stable Rust toolchain (including Cargo) with
+[rustup](https://rust-lang.org/tools/install/), then load its shell environment:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+. "$HOME/.cargo/env"
+rustup default stable
+```
+
+Rust also needs a C linker: install the Command Line Tools with
+`xcode-select --install` on macOS, or `sudo apt-get install build-essential` on
+Debian/Ubuntu. Install [Tectonic](https://tectonic-typesetting.github.io/book/latest/installation/)
+with `brew install tectonic` on macOS, or `conda install -c conda-forge tectonic`
+on Linux/macOS.
+
+For a fresh clone, **budget about 700 MB of downloads for committed results,
+cached responses and frozen inputs** ([size audit](experiments/results/reproduction_size.json)).
+Actual transfer depends on Git history and compression; toolchain and dependency
+downloads are additional. The replay below uses those already cloned artifacts.
+
 ```bash
 uv sync --all-extras --group dev --group experiments --group bench
 uv run --no-sync python -m experiments.run reproduce
@@ -191,9 +215,10 @@ uv run --no-sync python -m experiments.cli_agents --agent codex \
 ```
 
 The CLI runner invokes `codex exec -m gpt-6.1-sol -c model_reasoning_effort=medium`
-with isolated configuration. NIM batches take one shared atomic mkdir slot and
-make serial requests, retry transient failures with backoff, cache each response,
-and release the slot on exit or termination. Long-job diagnostics stay in ignored
+with isolated configuration. Each NIM batch takes one of two shared atomic
+`mkdir` slots (`nim-slot-1` or `nim-slot-2`) and makes serial requests,
+retries transient failures with backoff, caches each response,
+and releases the slot on exit or termination. Long-job diagnostics stay in ignored
 root `runs/`; research receipts are committed under `experiments/results/causal-v2/runs/`.
 
 ## Provenance
@@ -222,7 +247,7 @@ record identifies the source snapshot loaded by a long-running process.
 
 ## Rust CSCV performance
 
-An isolated Linux runner measured **182–1,135×** Rust/pypbo median speedups over the feasible cases. The largest pypbo matrix exceeds the prespecified memory cap and is skipped. This replaces the historical M1 best-run range with a different hardware/method baseline, not a claimed improvement over those old ratios. [Full benchmark](benchmarks/results/linux/pbo_benchmark.json).
+An isolated Linux runner measured **182–1,136×** Rust/pypbo median speedups over the feasible cases. The largest pypbo matrix exceeds the prespecified memory cap and is skipped. This replaces the historical M1 best-run range with a different hardware/method baseline, not a claimed improvement over those old ratios. [Full benchmark](benchmarks/results/linux/pbo_benchmark.json).
 
 The randomized interleaved comparison improves all fixed Rust cases by **1.09–1.17×** over the original kernel. The largest case goes from **219.863 to 189.664 ms**, with all output arrays byte-identical. Shared-M1 runs include regressions and unstable timings, which remain available. [Interleaved inputs, order and all samples](benchmarks/results/linux/kernel_interleaved.json); [successful runner receipt](benchmarks/results/linux/run.json).
 

@@ -57,6 +57,218 @@ def last_json(text: str) -> dict | None:
     return found
 
 
+def _prepare_workspace(root: Path, market, out: Path, logdir: Path, model_id: str, run_id: str):
+    data = root / "data.csv"
+    data.write_text(
+        "date,return\n"
+        + "".join(f"{d},{float(r)!r}\n" for d, r in zip(market.dates, market.returns, strict=True))
+    )
+    server_args = [
+        "-m",
+        "trial_ledger.mcp_server",
+        "--data",
+        str(data),
+        "--ledger",
+        str(out.resolve() / "ledger"),
+        "--agent",
+        model_id,
+        "--session",
+        run_id,
+        "--hide-trial-ids",
+        "--research-only",
+        "--tool-budget",
+        str(TOOL_BUDGET),
+    ]
+    python = str(REPO / ".venv/bin/python")
+    hook = root / "hook.py"
+    # Keep only capture metadata; the adapter handles live CLI wire payloads itself.
+    hook.write_text(
+        "import json,sys\nfrom pathlib import Path\n"
+        "from trial_ledger.hooks import log_shell_event\n"
+        "from trial_ledger.ledger import Ledger\n"
+        "e=json.load(sys.stdin)\n"
+        f"p=Path({str(logdir / 'hooks.jsonl')!r})\n"
+        "with p.open('a') as f: f.write(json.dumps({'event':e.get('hook_event_name'),"
+        "'tool':e.get('tool_name')})+'\\n')\n"
+        f"log_shell_event(e, Ledger({str(logdir / 'shell-ledger')!r}), agent={model_id!r})\n"
+    )
+    hooks = {
+        "PostToolUse": [
+            {
+                "matcher": "Bash",
+                "hooks": [{"type": "command", "command": shlex.join([python, str(hook)])}],
+            }
+        ]
+    }
+    return server_args, hooks
+
+
+def _agent_command(agent: str, root: Path, server_args: list[str], hooks: dict):
+    model = MODELS[agent]
+    python = str(REPO / ".venv/bin/python")
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if not any(
+            s in k.upper()
+            for s in ("API_KEY", "TOKEN", "SECRET", "PASSWORD", "KAGGLE", "CLAUDECODE")
+        )
+    }
+    if agent == "codex":
+        home = root / "codex-home"
+        home.mkdir()
+        auth = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "auth.json"
+        if auth.exists():
+            (home / "auth.json").symlink_to(auth)
+        env["CODEX_HOME"] = str(home)
+        cfg = (
+            'model_reasoning_effort = "medium"\n'
+            "[mcp_servers.trial-ledger]\n"
+            f"command = {json.dumps(python)}\nargs = {json.dumps(server_args)}\n"
+            "required = true\nstartup_timeout_sec = 60\n"
+            'default_tools_approval_mode = "approve"\n'
+            'enabled_tools = ["describe_dataset", "run_backtest", "run_sweep"]\n'
+        )
+        (home / "config.toml").write_text(cfg)
+        (home / "hooks.json").write_text(json.dumps({"hooks": hooks}))
+        cmd = [
+            "codex",
+            "exec",
+            "-m",
+            model,
+            "-c",
+            "model_reasoning_effort=medium",
+            "--skip-git-repo-check",
+            "--ephemeral",
+            "--json",
+            "--color",
+            "never",
+            "--sandbox",
+            "workspace-write",
+            "--dangerously-bypass-hook-trust",
+            "-o",
+            str(root / "answer.txt"),
+            PROMPT,
+        ]
+    else:
+        config = root / "mcp.json"
+        config.write_text(
+            json.dumps({"mcpServers": {"trial-ledger": {"command": python, "args": server_args}}})
+        )
+        settings = root / "settings.json"
+        settings.write_text(json.dumps({"hooks": hooks}))
+        cmd = [
+            "claude",
+            "-p",
+            PROMPT,
+            "--model",
+            model,
+            "--output-format",
+            "json",
+            "--mcp-config",
+            str(config),
+            "--strict-mcp-config",
+            "--settings",
+            str(settings),
+            "--setting-sources",
+            "",
+            "--tools",
+            "Bash,Read,Write,Edit",
+            "--allowedTools",
+            "Bash(printf *)",
+            "mcp__trial-ledger__*",
+            "--permission-mode",
+            "dontAsk",
+            "--no-session-persistence",
+        ]
+    return cmd, env
+
+
+def _execute(cmd: list[str], workspace: Path, env: dict, logdir: Path, timeout: int):
+    timed_out = False
+    with (
+        (logdir / "stdout.log").open("w") as stdout,
+        (logdir / "stderr.log").open("w") as stderr,
+    ):
+        proc = subprocess.Popen(
+            cmd,
+            cwd=workspace,
+            env=env,
+            stdout=stdout,
+            stderr=stderr,
+            start_new_session=True,
+            stdin=subprocess.DEVNULL,
+        )
+        try:
+            code = proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            import signal
+
+            os.killpg(proc.pid, signal.SIGTERM)
+            code = proc.wait(timeout=20)
+            timed_out = True
+    raw = (logdir / "stdout.log").read_text()
+    return code, timed_out, raw
+
+
+def _read_submission(agent: str, root: Path, raw: str, code: int, timed_out: bool):
+    if agent == "codex":
+        answer = (root / "answer.txt").read_text() if (root / "answer.txt").exists() else ""
+    else:
+        try:
+            answer = json.loads(raw).get("result", "")
+        except (json.JSONDecodeError, AttributeError):
+            answer = ""
+    sub = last_json(answer)
+    from trial_ledger.backtest import normalise_spec
+
+    try:
+        normalise_spec(sub["strategy"] if sub else {})
+    except ValueError:
+        valid = False
+    else:
+        valid = True
+    status = ("ok" if valid else "invalid_submission") if code == 0 else "cli_error"
+    if timed_out:
+        status = "timeout"
+    if any(
+        s in raw
+        for s in (
+            "authentication_error",
+            "Not logged in",
+            "Failed to refresh",
+            "OAuth session expired",
+            "Failed to authenticate",
+        )
+    ):
+        status = "auth_failed"
+    return answer, sub, status
+
+
+def _save_episode(agent: str, out: Path, logdir: Path, record: dict, answer: str, raw: str):
+    episode = out / "episode.json"
+    episode.write_text(json.dumps(record, indent=2) + "\n")
+    if (logdir / "hooks.jsonl").exists():
+        shutil.copyfile(logdir / "hooks.jsonl", out / "capture.jsonl")
+    # Final text contains only the subject's answer, no CLI diagnostic or auth output.
+    (out / "answer.txt").write_text(answer)
+    if agent == "codex":
+        calls = [
+            json.loads(line)["item"]
+            for line in raw.splitlines()
+            if line.startswith('{"type":"item.completed"')
+            and json.loads(line).get("item", {}).get("type") == "mcp_tool_call"
+        ]
+        (out / "calls.jsonl").write_text("".join(json.dumps(c) + "\n" for c in calls))
+        record["tool_calls"] = sum(c["tool"] in {"run_backtest", "run_sweep"} for c in calls)
+        episode.write_text(json.dumps(record, indent=2) + "\n")
+    if record["status"] == "auth_failed" and not record["ledger_records"]:
+        target = RESULTS / "attempts" / record["model"].replace("/", "__") / record["run_id"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        out.rename(target)
+    return record
+
+
 def run(agent: str, kind: str, seed: int, rep: int = 0, timeout: int = 1800) -> dict:
     model = MODELS[agent]
     model_id = f"{agent}-cli/{model}"
@@ -87,180 +299,10 @@ def run(agent: str, kind: str, seed: int, rep: int = 0, timeout: int = 1800) -> 
         root = Path(root)
         workspace = root / "workspace"
         workspace.mkdir()
-        data = root / "data.csv"
-        data.write_text(
-            "date,return\n"
-            + "".join(
-                f"{d},{float(r)!r}\n" for d, r in zip(market.dates, market.returns, strict=True)
-            )
-        )
-        server_args = [
-            "-m",
-            "trial_ledger.mcp_server",
-            "--data",
-            str(data),
-            "--ledger",
-            str(out.resolve() / "ledger"),
-            "--agent",
-            model_id,
-            "--session",
-            run_id,
-            "--hide-trial-ids",
-            "--research-only",
-            "--tool-budget",
-            str(TOOL_BUDGET),
-        ]
-        python = str(REPO / ".venv/bin/python")
-        hook = root / "hook.py"
-        # Keep only capture metadata; the adapter handles live CLI wire payloads itself.
-        hook.write_text(
-            "import json,sys\nfrom pathlib import Path\n"
-            "from trial_ledger.hooks import log_shell_event\n"
-            "from trial_ledger.ledger import Ledger\n"
-            "e=json.load(sys.stdin)\n"
-            f"p=Path({str(logdir / 'hooks.jsonl')!r})\n"
-            "with p.open('a') as f: f.write(json.dumps({'event':e.get('hook_event_name'),"
-            "'tool':e.get('tool_name')})+'\\n')\n"
-            f"log_shell_event(e, Ledger({str(logdir / 'shell-ledger')!r}), agent={model_id!r})\n"
-        )
-        hooks = {
-            "PostToolUse": [
-                {
-                    "matcher": "Bash",
-                    "hooks": [{"type": "command", "command": shlex.join([python, str(hook)])}],
-                }
-            ]
-        }
-        env = {
-            k: v
-            for k, v in os.environ.items()
-            if not any(
-                s in k.upper()
-                for s in ("API_KEY", "TOKEN", "SECRET", "PASSWORD", "KAGGLE", "CLAUDECODE")
-            )
-        }
-        if agent == "codex":
-            home = root / "codex-home"
-            home.mkdir()
-            auth = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "auth.json"
-            if auth.exists():
-                (home / "auth.json").symlink_to(auth)
-            env["CODEX_HOME"] = str(home)
-            cfg = (
-                'model_reasoning_effort = "medium"\n'
-                "[mcp_servers.trial-ledger]\n"
-                f"command = {json.dumps(python)}\nargs = {json.dumps(server_args)}\n"
-                "required = true\nstartup_timeout_sec = 60\n"
-                'default_tools_approval_mode = "approve"\n'
-                'enabled_tools = ["describe_dataset", "run_backtest", "run_sweep"]\n'
-            )
-            (home / "config.toml").write_text(cfg)
-            (home / "hooks.json").write_text(json.dumps({"hooks": hooks}))
-            cmd = [
-                "codex",
-                "exec",
-                "-m",
-                model,
-                "-c",
-                "model_reasoning_effort=medium",
-                "--skip-git-repo-check",
-                "--ephemeral",
-                "--json",
-                "--color",
-                "never",
-                "--sandbox",
-                "workspace-write",
-                "--dangerously-bypass-hook-trust",
-                "-o",
-                str(root / "answer.txt"),
-                PROMPT,
-            ]
-        else:
-            config = root / "mcp.json"
-            config.write_text(
-                json.dumps(
-                    {"mcpServers": {"trial-ledger": {"command": python, "args": server_args}}}
-                )
-            )
-            settings = root / "settings.json"
-            settings.write_text(json.dumps({"hooks": hooks}))
-            cmd = [
-                "claude",
-                "-p",
-                PROMPT,
-                "--model",
-                model,
-                "--output-format",
-                "json",
-                "--mcp-config",
-                str(config),
-                "--strict-mcp-config",
-                "--settings",
-                str(settings),
-                "--setting-sources",
-                "",
-                "--tools",
-                "Bash,Read,Write,Edit",
-                "--allowedTools",
-                "Bash(printf *)",
-                "mcp__trial-ledger__*",
-                "--permission-mode",
-                "dontAsk",
-                "--no-session-persistence",
-            ]
-        timed_out = False
-        with (
-            (logdir / "stdout.log").open("w") as stdout,
-            (logdir / "stderr.log").open("w") as stderr,
-        ):
-            proc = subprocess.Popen(
-                cmd,
-                cwd=workspace,
-                env=env,
-                stdout=stdout,
-                stderr=stderr,
-                start_new_session=True,
-                stdin=subprocess.DEVNULL,
-            )
-            try:
-                code = proc.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                import signal
-
-                os.killpg(proc.pid, signal.SIGTERM)
-                code = proc.wait(timeout=20)
-                timed_out = True
-        raw = (logdir / "stdout.log").read_text()
-        if agent == "codex":
-            answer = (root / "answer.txt").read_text() if (root / "answer.txt").exists() else ""
-        else:
-            try:
-                answer = json.loads(raw).get("result", "")
-            except (json.JSONDecodeError, AttributeError):
-                answer = ""
-        sub = last_json(answer)
-        from trial_ledger.backtest import normalise_spec
-
-        try:
-            normalise_spec(sub["strategy"] if sub else {})
-        except ValueError:
-            valid = False
-        else:
-            valid = True
-        status = ("ok" if valid else "invalid_submission") if code == 0 else "cli_error"
-        if timed_out:
-            status = "timeout"
-        if any(
-            s in raw
-            for s in (
-                "authentication_error",
-                "Not logged in",
-                "Failed to refresh",
-                "OAuth session expired",
-                "Failed to authenticate",
-            )
-        ):
-            status = "auth_failed"
+        server_args, hooks = _prepare_workspace(root, market, out, logdir, model_id, run_id)
+        cmd, env = _agent_command(agent, root, server_args, hooks)
+        code, timed_out, raw = _execute(cmd, workspace, env, logdir, timeout)
+        answer, sub, status = _read_submission(agent, root, raw, code, timed_out)
         ledger = Ledger(out / "ledger")
         recs = ledger.records()
         record = {
@@ -288,26 +330,7 @@ def run(agent: str, kind: str, seed: int, rep: int = 0, timeout: int = 1800) -> 
             if (logdir / "hooks.jsonl").exists()
             else 0,
         }
-        episode.write_text(json.dumps(record, indent=2) + "\n")
-        if (logdir / "hooks.jsonl").exists():
-            shutil.copyfile(logdir / "hooks.jsonl", out / "capture.jsonl")
-        # Final text contains only the subject's answer, no CLI diagnostic or auth output.
-        (out / "answer.txt").write_text(answer)
-        if agent == "codex":
-            calls = [
-                json.loads(line)["item"]
-                for line in raw.splitlines()
-                if line.startswith('{"type":"item.completed"')
-                and json.loads(line).get("item", {}).get("type") == "mcp_tool_call"
-            ]
-            (out / "calls.jsonl").write_text("".join(json.dumps(c) + "\n" for c in calls))
-            record["tool_calls"] = sum(c["tool"] in {"run_backtest", "run_sweep"} for c in calls)
-            episode.write_text(json.dumps(record, indent=2) + "\n")
-        if status == "auth_failed" and not recs:
-            target = RESULTS / "attempts" / model_id.replace("/", "__") / run_id
-            target.parent.mkdir(parents=True, exist_ok=True)
-            out.rename(target)
-        return record
+        return _save_episode(agent, out, logdir, record, answer, raw)
 
 
 def main() -> int:

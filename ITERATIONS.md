@@ -1036,3 +1036,33 @@ PDF layout iteration 3: build at 3b244860 exits 0, with zero overfull/underfull 
 Paper completion: exact command `tectonic -X compile paper/main.tex` at 61e8fd4e exits 0 and creates an 11-page PDF. All pages are rendered; changed pages 2/3 are reinspected, and the other nine final page images exactly match already inspected renders. The word-fragment issue is resolved; no overfull/underfull boxes, unresolved citation or reference markers remain. Eight verified bibliography entries are present. The Tectonic internal .bbl six-pass warning remains disclosed in `paper/build.json`. Commands, committed input hashes, PDF checksum and every final render checksum are recorded there. No empirical table cell is hand-entered. Source generation: f557489f -> `paper/generated/manifest.json`; generated inputs committed at 1bd9f00a before building.
 
 README publication: replace superseded headlines with the complete corrected sample, retain the withdrawal and exposed-BTC caveats, show statistic-specific denominators and every sensitivity setting, and link the PDF at the top. Every empirical number links to a committed result. The evidence targets are met: 105 real CLI episodes, four nominal Wilson half-widths below 10 pp, a negative primary paired decision result with tested boundary conditions, all stored returns/PBO, checked Rust benchmark outputs and green full-sample CI. Both API failures and the Claude authentication skip remain. The final delivery gate watches all seven jobs on the pushed PDF/README commit; no publication to arXiv or PyPI is requested or performed.
+
+Final reviewer fixes (2026-10-30): address only the five requested items; no new
+agent, market or benchmark experiment. README now describes one serial NIM batch
+per slot, with two atomic shared slots. Replace truncated headline speedups with
+nearest-integer rounding: the saved upper ratio (1135.5 at one decimal), previously displayed as 1,135,
+now displays as 1,136 in README and generated paper macros; timing samples and
+one-decimal table entries are unchanged. Add Rust/Cargo and Tectonic installation
+instructions, a three-line recruiter summary, and a roughly 700 MB download
+budget. `experiments/results/reproduction_size.json` records the exact committed
+artifact sizes: 611,541,566 checkout bytes, with the budget rounded up to the next
+100 MB; this is an allowance, not a measured network-transfer claim.
+
+Refactor `experiments.cli_agents.run` from 251 lines into 62 lines plus five
+focused helpers for workspace setup, commands, execution, parsing and saving.
+Remove the unreferenced older `experiments.claude_code` implementation: the shared
+runner already supports `--agent claude`. Prompts, commands, credentials filtering,
+hook payloads, timeouts, status precedence, receipts, resumption and result paths
+remain unchanged. Eleven offline CLI contract tests pass on both the original
+and refactored code, including both agents, interrupted-ledger cleanup, timeout
+signals, failure accounting, capture artifacts and resume. No real agent is run.
+
+Validation: `uv run --no-sync ruff check .`, `uv run --no-sync ruff format --check .`
+and `git diff --check`: PASS. Full suite with two Rayon threads and single-thread
+BLAS: `uv run --no-sync pytest`: 149 passed. `CARGO_BUILD_JOBS=2 cargo test --release
+--manifest-path rust/Cargo.toml`: three passed. Logs: ignored
+`runs/final-review/pytest.log` and `cargo.log`. `uv run --no-sync python
+paper/make_tables.py`: PASS from committed result snapshot a9853d4a; all empirical
+input and generated-output hashes verify. The abstract picks up the corrected
+rounded range through `paper/generated/numbers.tex`. Commit these inputs before
+the exact PDF rebuild and final CI gate.
