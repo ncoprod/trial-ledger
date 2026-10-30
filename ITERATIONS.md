@@ -912,3 +912,13 @@ arithmetic replay verifies the submission and every trial fingerprint unchanged,
 and checks the fresh provenance fields; `uv run --no-sync python -m
 runs.check_control_provenance`, ignored `runs/review-control-provenance.log`: PASS.
 Ruff check/format PASS. The pending automatic-provenance item is closed.
+
+Long-job provenance audit: preserve the two contemporaneous NIM launch receipts
+and their original checksums in `causal-v2/nim_launches.json`. Distinguish the
+loaded launch source snapshot from workspace file hashes recorded at episode
+completion. Command: `uv run --no-sync python -m runs.save_inference_launches`:
+PASS; backtester, service and NIM client are byte-identical to 5dcf789a. The only
+later agent changes initialize empty ledgers and attach control provenance.
+No live batch is restarted and no inference setting or feedback changes.
+Latest source checkpoint e2af89ee passes all seven Actions jobs in run 40980106091,
+including 138 Python tests in each native build and the distribution notice checks.

@@ -193,16 +193,20 @@ root `runs/`; research receipts are committed under `experiments/results/runs/`.
 | Acceptance, counts, submitted specs, moments and held-out metrics | [episodes.json](experiments/results/episodes.json); [summary.json](experiments/results/summary.json) |
 | Decisions, uncertainty, paired tests and exploratory conditions | [paired_tests.json](experiments/results/paired_tests.json), including analysis command, source hashes, seeds and configuration |
 | Generation receipts and artifact checksums | [provenance.json](experiments/results/provenance.json); [episode receipts](experiments/results/runs/); [response caches](experiments/cache/) |
+| Corrected NIM launch commands and loaded source snapshot | [nim_launches.json](experiments/results/causal-v2/nim_launches.json); exact seeds, model aliases and original batch commands |
 | Stored returns and frozen inputs | [returns_integrity.json](experiments/results/returns_integrity.json); [GARCH archive manifest](experiments/data/garch_markets.json) |
 | Native performance and output equality | [isolated Linux comparison](benchmarks/results/linux/kernel_interleaved.json); [full Linux benchmark](benchmarks/results/linux/pbo_benchmark.json); [runner receipt](benchmarks/results/linux/run.json) |
 
 Hosted weight revisions were not pinned or recorded. Model aliases, CLI
 versions, settings and available source snapshots are recorded; Hugging Face
 revisions in the licence audit identify the card checked, not the deployed model.
-Original NIM episodes did not record their exact launch command: the committed
+Superseded first-version NIM episodes did not record their exact launch command: the committed
 cache and ledger establish replay, and the current regeneration command/source are
 recorded without inventing historical metadata. Receipt corrections and interrupted
 prefixes are explicit in [the iteration log](ITERATIONS.md).
+Corrected batches retain their saved launch commands and source commit. Their
+per-episode file hashes describe the workspace at receipt creation; the launch
+record identifies the source snapshot loaded by a long-running process.
 
 ## Rust CSCV performance
 
