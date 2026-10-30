@@ -297,7 +297,7 @@ def run_random_search(
     results_dir: Path | None = None,
 ):
     """Non-LLM baseline: the same tool budget spent on random backtests and random sweeps;
-    it 'submits' its best trial and reports the true N."""
+    it submits its best displayed trial and reports the evaluation-record count."""
     market, _, _ = make_market(kind, seed)
     run_id = f"{kind}-s{seed}-r{rep}"
     out_dir = (results_dir or RESULTS) / "runs" / "random-search" / run_id
@@ -369,5 +369,16 @@ def run_random_search(
         "ledger_head": " ".join(map(str, ledger.head())),
         "api_calls": 0,
     }
+    record["provenance"] = provenance(
+        {
+            "model": "random-search",
+            "market": kind,
+            "seed": seed,
+            "rep": rep,
+            "tool_budget": budget,
+            "random_search_seed": f"{kind}-{seed}-{rep}",
+        }
+    )
+    record["provenance"]["hosted_model_revision"] = "not applicable; no inference"
     (out_dir / "episode.json").write_text(json.dumps(record, indent=1))
     return record

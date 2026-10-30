@@ -595,7 +595,7 @@ version is not a candidate eligible for headline selection.
 | M2 purge boundaries | Purge both label-interval boundaries, then embargo after their union | All-pairs interval intersections, zero/short embargo | 5dcf789a |
 | M3 collapsed emissions | Deduplicate only proven equal return hashes within a coherent cohort; otherwise each scored evaluation counts | Actual emit/exec regression with changed script content, scores and repeated metadata | 5dcf789a |
 | M4 mixed cohorts | Require dataset/time-axis/frequency/length identity; no majority-length selection; explicit legacy alignment assertion remains labelled | Mixed dataset, date axis, frequency and length rejection tests | 5dcf789a |
-| M5 failed verification | Abort analysis/public report on chain/replay failure; stop reproduce before any writes | Corrupted score, return hash, anchored tail, and no-publication regressions | 5dcf789a, 21c36bb6, 6509fbc6 |
+| M5 failed verification | Abort analysis/public report on chain/replay failure; stop reproduce before any writes | Corrupted score, return hash, anchored tail, and no-publication regressions | 5dcf789a, 21c36bb6, 6509fbc6, 5bf9ceea |
 | M6 native licences | Collect locked dependency notices, package wheel/sdist bundles, inspect both CI artifacts | All 59 full notices verified in both platform wheels and Linux source archive; CI 40946558292 PASS | 4c36f6e5, 187ee8ee, 1ddf6ff7 |
 | m7 window boundaries | Initial equity included in drawdown; slice actual full-history turnover | First OOS loss and unchanged holdings regression | 5dcf789a |
 | m8 unused cache | Delete unused returns_by_seq and its numpy import | Existing MCP/service tests | 5dcf789a |
@@ -901,3 +901,14 @@ Long-running live NIM processes still execute their launch snapshot; they are no
 restarted. Any genuine zero-trial receipt from that snapshot must be explicitly
 hydrated against its external genesis anchor, with no invented evaluations.
 Backtest feedback, fixed sample and all inference settings remain unchanged.
+
+Control-provenance follow-through: future `run_random_search` receipts now record
+the actual command, source/config, market seed, generator seed and a no-inference
+revision label automatically. Existing recovered receipts (e3c4edd2) keep their
+original generation source and are not relabelled as fresh runs. The docstring now
+says record count rather than independent/distinct N. Command:
+`uv run --no-sync pytest tests/test_experiment.py -q`: 19 PASS. A fixed seed-0
+arithmetic replay verifies the submission and every trial fingerprint unchanged,
+and checks the fresh provenance fields; `uv run --no-sync python -m
+runs.check_control_provenance`, ignored `runs/review-control-provenance.log`: PASS.
+Ruff check/format PASS. The pending automatic-provenance item is closed.
