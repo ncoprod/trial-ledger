@@ -64,6 +64,165 @@ def pvalue(value):
     return f"{value:.3g}"
 
 
+def round3_tables(result, headlines):
+    strata = result["null_strata"]
+    markdown = [
+        "Generated from [round-3 results](../../experiments/results/round3/results.json). "
+        "Brackets are nominal Wilson 95% intervals.\n",
+        "| Subject / null market | Attempts | Naive PSR | Ledger DSR |",
+        "|---|---:|---:|---:|",
+    ]
+    for r in strata:
+        cells = []
+        for field in ("psr0", "dsr_ledger"):
+            v = r[field]
+            lo, hi = v["wilson_95_ci"]
+            cells.append(f"{v['passes']}/{v['n']} [{100 * lo:.1f}–{100 * hi:.1f}%]")
+        markdown.append(
+            f"| {NAMES[r['model']]} / {r['market']} | {r['attempts']} | " + " | ".join(cells) + " |"
+        )
+    (OUT / "null_strata.md").write_text("\n".join(markdown) + "\n")
+    table(
+        "null_strata",
+        "Existing null results by model and market; nominal Wilson "
+        "95\\% intervals in percent. Reused market seeds are not independent replications.",
+        ["Subject", "Market", "Attempts", "Naive PSR", "Ledger DSR"],
+        [
+            [NAMES[r["model"]], r["market"], r["attempts"], rate(r["psr0"]), rate(r["dsr_ledger"])]
+            for r in strata
+        ],
+        "llrrr",
+    )
+    eth = result["eth"]
+    reference = eth["candidates"]["buy_and_hold"]
+    drawdowns = {}
+    for model in NAMES:
+        selected = [
+            s
+            for s in eth["selections"]
+            if s["model"] == model and s["status"] == "ok" and s["submitted_valid"]
+        ]
+        values = [
+            next(
+                c["later"]["max_drawdown"]
+                for c in eth["candidates"].values()
+                if c["strategy"] == s["selected_strategy"]
+            )
+            for s in selected
+        ]
+        drawdowns[model] = float(np.median(values))
+    table(
+        "eth_transfer",
+        "Fixed BTC selections transferred to ETH without new search. "
+        "Sharpe medians count repeated selections; the rule column exposes duplication. "
+        "MDD is median later drawdown in percent. The reference pays the same entry "
+        "cost and carries holdings across the split.",
+        ["Subject", "Valid/attempts", "Rules", "Research", "Later", "MDD", "Below ref."],
+        [
+            [
+                NAMES[r["model"]],
+                f"{r['valid']}/{r['attempts']}",
+                r["unique_rules"],
+                f"{r['median_research_sharpe']:.3f}",
+                f"{r['median_later_sharpe']:.3f}",
+                f"{100 * drawdowns[r['model']]:.1f}",
+                f"{r['below_buy_and_hold']}/{r['valid']}",
+            ]
+            for r in eth["per_model"]
+        ]
+        + [
+            [
+                "Buy and hold",
+                "--",
+                "--",
+                f"{reference['research']['sharpe_ann']:.3f}",
+                f"{reference['later']['sharpe_ann']:.3f}",
+                f"{100 * reference['later']['max_drawdown']:.1f}",
+                "--",
+            ]
+        ],
+        "lrrrrrr",
+    )
+    compact = [
+        "Cells show **accepted/valid picks**; the second line is the nominal "
+        "Wilson 95% interval.\n",
+        "| Subject | Valid / attempts | Naive PSR | Ledger-N DSR |",
+        "|---|---:|---:|---:|",
+    ]
+    for key, name in [("cli", "Codex CLI"), ("nim", "NIM tool loops")]:
+        h = headlines[key]
+        cells = []
+        for field in ("psr0", "dsr_ledger"):
+            r = h[field]
+            lo, hi = r["wilson_95_ci"]
+            cells.append(f"**{r['passes']}/{r['n']}**<br>{100 * lo:.2f}–{100 * hi:.2f}%")
+        compact.append(
+            f"| {name} | {h['episodes']} / {h['attempts']} | " + " | ".join(cells) + " |"
+        )
+    compact += [
+        "\nSelf-report accounting uses its own positive-claim denominator.\n",
+        "| Subject | Under-reported N [Wilson 95% CI] | Claimed-N DSR |",
+        "|---|---:|---:|",
+    ]
+    for key, name in [("cli", "Codex CLI"), ("nim", "NIM tool loops")]:
+        h = headlines[key]
+        lo, hi = h["underreported_wilson_95_ci"]
+        r = h["dsr_claimed"]
+        compact.append(
+            f"| {name} | {h['underreported']}/{h['claims_available']} "
+            f"[{100 * lo:.2f}–{100 * hi:.2f}%] | {r['passes']}/{r['n']} |"
+        )
+    compact += [
+        "\n[Counts, intervals and paired tests](experiments/results/causal-v2/paired_tests.json)."
+    ]
+    cli_strata = [r for r in strata if r["model"].startswith("codex-cli/")]
+    compact += [
+        "\nThe Codex result holds in both null constructions: "
+        + "; ".join(
+            f"{r['market']} {r['psr0']['passes']}/{r['psr0']['n']} naive versus "
+            f"{r['dsr_ledger']['passes']}/{r['dsr_ledger']['n']} ledger-DSR"
+            for r in cli_strata
+        )
+        + ". [Every model/market stratum](experiments/results/round3/results.json)."
+    ]
+    transfer = [
+        "Sharpe and maximum drawdown are medians over selections; repeated rules "
+        "count repeatedly.\n",
+        "| BTC subject | Rules / valid picks | ETH research Sharpe | ETH later Sharpe / drawdown |",
+        "|---|---:|---:|---:|",
+    ]
+    for r in eth["per_model"]:
+        transfer.append(
+            f"| {NAMES[r['model']]} | {r['unique_rules']} / {r['valid']} | "
+            f"{r['median_research_sharpe']:.3f} | {r['median_later_sharpe']:.3f} / "
+            f"{100 * drawdowns[r['model']]:.1f}% |"
+        )
+    transfer += [
+        f"\nAll {len(eth['selections'])} BTC selections are retained; "
+        f"{eth['unique_rules']} distinct rules plus buy-and-hold add "
+        f"{eth['evaluations']} logged ETH evaluations. The later buy-and-hold "
+        f"Sharpe is {reference['later']['sharpe_ann']:.3f}, with "
+        f"{100 * reference['later']['max_drawdown']:.1f}% drawdown. "
+        "[All selections, full precision and provenance](experiments/results/round3/results.json)."
+    ]
+    readme = (ROOT / "README.md").read_text()
+    for label, content in [("RESULTS", compact), ("TRANSFER", transfer)]:
+        start, end = f"<!-- BEGIN GENERATED {label} -->", f"<!-- END GENERATED {label} -->"
+        before, rest = readme.split(start, 1)
+        _, after = rest.split(end, 1)
+        readme = before + start + "\n\n" + "\n".join(content) + "\n\n" + end + after
+    (ROOT / "README.md").write_text(readme)
+    codex = next(r for r in eth["per_model"] if r["model"].startswith("codex-cli/"))
+    return {
+        "EthSelections": len(eth["selections"]),
+        "EthRules": eth["unique_rules"],
+        "EthEvaluations": eth["evaluations"],
+        "EthCodexRules": codex["unique_rules"],
+        "EthCodexLater": f"{codex['median_later_sharpe']:.3f}",
+        "EthReferenceLater": f"{reference['later']['sharpe_ann']:.3f}",
+    }
+
+
 def acceptance_plot(headlines):
     fig, ax = plt.subplots(figsize=(6.4, 3.4), layout="constrained")
     x = np.arange(2)
@@ -112,6 +271,7 @@ def main():
     calibration = committed("experiments/data/garch_fit.json")
     review = committed(RESULTS + "review_verification.json")
     claude = committed(RESULTS + "attempts/claude-cli__haiku/signflip-s0-r0/episode.json")
+    round3 = committed("experiments/results/round3/results.json")
     expected = set()
     for model in NAMES:
         null_seeds = (
@@ -174,6 +334,7 @@ def main():
         "RustOriginalMs": f"{largest['medians_seconds']['original'] * 1000:.3f}",
         "RustFinalMs": f"{largest['medians_seconds']['branchless'] * 1000:.3f}",
     }
+    numbers.update(round3_tables(round3, h))
     (OUT / "numbers.tex").write_text(
         "\n".join(rf"\newcommand{{\{key}}}{{{value}}}" for key, value in numbers.items()) + "\n"
     )

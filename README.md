@@ -44,11 +44,15 @@ flowchart LR
     A --> M["Shared backtester + CLI MCP/hooks"]
     M --> L["Anchored ledger + compressed returns"]
     L --> E["PSR / claimed-N DSR / ledger-N DSR / CSCV PBO"]
-    E --> R["episodes.json / paired_tests.json / figures"]
+    E --> R["Episode / paired / transfer results + figures"]
     D --> H["Previously examined BTC diagnostic"]
     A --> F["Fixed final candidate"]
     F --> H
     H --> R
+    ED["ETH daily closes"] --> T["Fixed BTC rules; no new search"]
+    F --> T
+    T --> EL["ETH ledger + compressed returns"]
+    EL --> R
 ```
 
 ## What the experiment establishes
@@ -60,10 +64,27 @@ CLI process in a fresh temporary workspace with MCP and hooks configured. Scored
 CLI evaluations use MCP; the shell hook is smoke-tested live. Both search predefined
 rule families. [Protocol](experiments/PROTOCOL.md).
 
-| Subject | Null attempts (valid picks) | Naive PSR [Wilson 95% CI] | Claimed-N DSR | Ledger-N DSR [Wilson 95% CI] | Under-reported N [Wilson 95% CI] | Source |
-|---|---:|---|---:|---|---|---|
-| Codex CLI | 100 (100) | 86/100 [77.86%, 91.47%] | 0/100 | 0/100 [0.00%, 3.70%] | 0/100 [0.00%, 3.70%] | [JSON](experiments/results/causal-v2/paired_tests.json) |
-| NIM tool loops | 120 (118) | 109/118 [86.14%, 95.94%] | 1/117 | 1/118 [0.15%, 4.64%] | 65/117 [46.52%, 64.24%] | [JSON](experiments/results/causal-v2/paired_tests.json) |
+<!-- BEGIN GENERATED RESULTS -->
+
+Cells show **accepted/valid picks**; the second line is the nominal Wilson 95% interval.
+
+| Subject | Valid / attempts | Naive PSR | Ledger-N DSR |
+|---|---:|---:|---:|
+| Codex CLI | 100 / 100 | **86/100**<br>77.86–91.47% | **0/100**<br>0.00–3.70% |
+| NIM tool loops | 118 / 120 | **109/118**<br>86.14–95.94% | **1/118**<br>0.15–4.64% |
+
+Self-report accounting uses its own positive-claim denominator.
+
+| Subject | Under-reported N [Wilson 95% CI] | Claimed-N DSR |
+|---|---:|---:|
+| Codex CLI | 0/100 [0.00–3.70%] | 0/100 |
+| NIM tool loops | 65/117 [46.52–64.24%] | 1/117 |
+
+[Counts, intervals and paired tests](experiments/results/causal-v2/paired_tests.json).
+
+The Codex result holds in both null constructions: garch 41/50 naive versus 0/50 ledger-DSR; signflip 45/50 naive versus 0/50 ledger-DSR. [Every model/market stratum](experiments/results/round3/results.json).
+
+<!-- END GENERATED RESULTS -->
 
 Acceptance denominators use valid completed null picks; all failures remain in
 attempt accounting and are never replaced by a best ledger trial. Count accounting
@@ -93,6 +114,32 @@ implemented. Other thresholds and count scenarios remain exploratory and do not
 replace the fixed primary rule.
 
 On the **previously examined BTC diagnostic**, 5 Codex attempts yield 5 valid picks and 1 distinct rule. Their median annualised Sharpe is 1.167 in research and 0.552 in the later period; 5/5 decline. This is one exposed period with repeated rules, not independent evidence of alpha. [episode metrics](experiments/results/causal-v2/episodes.json).
+
+### Fixed BTC rules transferred to ETH
+
+<!-- BEGIN GENERATED TRANSFER -->
+
+Sharpe and maximum drawdown are medians over selections; repeated rules count repeatedly.
+
+| BTC subject | Rules / valid picks | ETH research Sharpe | ETH later Sharpe / drawdown |
+|---|---:|---:|---:|
+| Codex (gpt-6.1-sol) | 1 / 5 | 1.117 | 1.403 / 33.7% |
+| Nemotron Ultra | 3 / 5 | 1.050 | 1.202 / 35.5% |
+| Nemotron Lightning | 4 / 5 | 1.117 | 0.471 / 63.1% |
+| gpt-oss-20b | 4 / 5 | 0.683 | 0.471 / 63.1% |
+| Random control | 5 / 5 | 0.891 | 0.864 / 39.9% |
+
+All 25 BTC selections are retained; 15 distinct rules plus buy-and-hold add 16 logged ETH evaluations. The later buy-and-hold Sharpe is 0.423, with 67.6% drawdown. [All selections, full precision and provenance](experiments/results/round3/results.json).
+
+<!-- END GENERATED TRANSFER -->
+
+The [round-3 protocol](experiments/ROUND3.md) was committed before ETH download
+or evaluation. Every BTC submission is retained; repeated rules are evaluated
+once and mapped back to their original selections. There is no ETH search or
+tuning. ETH and BTC share market exposure; this is a descriptive transfer case,
+not an untouched test or independent evidence of alpha. Full model-by-market
+null results are in the [generated breakdown](paper/generated/null_strata.md)
+and [machine-readable results](experiments/results/round3/results.json).
 
 Per-model outcomes, every failure status, DSR passes and BTC picks:
 [RESULTS.md](experiments/results/causal-v2/RESULTS.md), [full precision](experiments/results/causal-v2/episodes.json),
@@ -189,6 +236,7 @@ downloads are additional. The replay below uses those already cloned artifacts.
 ```bash
 uv sync --all-extras --group dev --group experiments --group bench
 uv run --no-sync python -m experiments.run reproduce
+uv run --no-sync python -m experiments.round3
 uv run --no-sync pytest
 CARGO_BUILD_JOBS=2 cargo test --release --manifest-path rust/Cargo.toml
 uv run --no-sync python paper/make_tables.py
@@ -231,6 +279,7 @@ root `runs/`; research receipts are committed under `experiments/results/causal-
 | Decisions, uncertainty, paired tests and exploratory conditions | [paired_tests.json](experiments/results/causal-v2/paired_tests.json), including analysis command, source hashes, seeds and configuration |
 | Generation receipts and artifact checksums | [provenance.json](experiments/results/causal-v2/provenance.json); [episode receipts](experiments/results/causal-v2/runs/); [response caches](experiments/cache/) |
 | Corrected NIM launch commands and loaded source snapshot | [nim_launches.json](experiments/results/causal-v2/nim_launches.json); exact seeds, model aliases and original batch commands |
+| Fixed BTC-to-ETH transfer and model/market decomposition | [round-3 results](experiments/results/round3/results.json); [ETH source checksums](experiments/data/ethusdt_1d.json); [fixed protocol](experiments/ROUND3.md) |
 | Stored returns and frozen inputs | [returns_integrity.json](experiments/results/causal-v2/returns_integrity.json); [GARCH archive manifest](experiments/data/garch_markets.json) |
 | Native performance and output equality | [isolated Linux comparison](benchmarks/results/linux/kernel_interleaved.json); [full Linux benchmark](benchmarks/results/linux/pbo_benchmark.json); [runner receipt](benchmarks/results/linux/run.json) |
 | Review regressions and complete-sample CI | [review_verification.json](experiments/results/causal-v2/review_verification.json); fixes and failed iterations in [ITERATIONS.md](ITERATIONS.md) |

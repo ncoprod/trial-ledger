@@ -1,6 +1,7 @@
 # Third-party notices
 
-Verified 29 October 2026. Research use of hosted services does not redistribute their
+Model/reference audits verified 29 October 2026; ETH data terms rechecked 30 October 2026.
+Research use of hosted services does not redistribute their
 weights. Hugging Face metadata revisions below establish the licence checked; they
 **do not identify the unrecorded NIM deployment revision**. Machine-readable checks
 and source URLs: [`experiments/results/license_sources.json`](experiments/results/license_sources.json).
@@ -18,7 +19,7 @@ and source URLs: [`experiments/results/license_sources.json`](experiments/result
 
 ## Market data — non-commercial restriction
 
-BTCUSDT daily closes originate from **Binance Public Data**,
+BTCUSDT and the round-3 ETHUSDT daily closes originate from **Binance Public Data**,
 [data.binance.vision](https://data.binance.vision/), spot monthly daily-kline archives.
 
 The repository README labels its downloader code MIT, but the **dataset** has separate
@@ -28,7 +29,7 @@ version 1.0, updated 26 August 2026: **Creative Commons Attribution-NonCommercia
 also cover derived data, charts and indicators. This restriction is material: the MIT
 code licence does not grant commercial rights to Binance-derived research artifacts.
 
-Attribution: Binance Public Data / Binance, BTCUSDT spot daily klines, downloaded
+Attribution: Binance Public Data / Binance, BTCUSDT and ETHUSDT spot daily klines, downloaded
 from Binance Vision. Modifications: extract closing prices, normalize millisecond /
 microsecond timestamps, calculate returns, bootstrap return magnitudes or calibrate
 GARCH, generate strategy return series and research figures. Retained prices,
@@ -44,6 +45,10 @@ by the owner's decision for offline reproducibility. Frozen GARCH calibration an
 input arrays preserve exact bytes across architectures; the statistical generator
 uses symmetric clipping to keep simple returns valid without introducing a nonzero
 conditional mean. No Yahoo, Kaggle or other market dataset is used by this repository.
+The round-3 ETH downloader is `python -m experiments.round3 --download`; its
+CSV, monthly checksum receipt and terms-content hash are committed in
+`experiments/data/ethusdt_1d.{csv,json}`. ETH-derived returns and tables retain the
+same Binance attribution and non-commercial/share-alike restrictions.
 
 ## Reference software and mathematical methods
 

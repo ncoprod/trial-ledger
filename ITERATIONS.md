@@ -1142,3 +1142,20 @@ writer's standard CRLF line endings. Declare `cr-at-eol` for the ETH CSV in
 recorded hashes. This is a packaging correction; no price, return, strategy or
 statistic changes. The subsequent source-checkpoint push runs the full local CI
 through the required pre-push hook.
+
+Round 3 iteration 3 (reporting, no new search): raw evidence is committed at
+2c909161; evaluation code and its startup correction are f33722a9 / b355c79d.
+Hypothesis: exposing model/market heterogeneity, repeated rules and drawdowns
+improves interpretability without artificially narrowing intervals. Generate
+all ten null strata, the complete ETH table and compact README views with
+`uv run --no-sync python paper/make_tables.py`. PASS: each stratum reconciles to
+the original headline counts; input and output hashes are in
+`paper/generated/manifest.json`. The original acceptance figure and all existing
+empirical table outputs are byte-identical. The main README table has four
+columns, with claim accounting separate; ETH Sharpe/drawdown entries explicitly
+count repeated selections in their medians. Sources are
+`experiments/results/round3/results.json`, `paper/generated/null_strata.{md,tex}`
+and `paper/generated/eth_transfer.tex`. Update the pipeline, ETH data attribution,
+offline reproduce command and paper extension. No candidate, threshold, model,
+seed or inference budget is changed after inspecting ETH. Ruff check/format and
+`git diff --check`: PASS. Commit these inputs before rebuilding the PDF.
