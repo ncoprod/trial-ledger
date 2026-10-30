@@ -6,9 +6,10 @@ import pytest
 
 pytest.importorskip("openai")
 
+from experiments import round3
 from experiments.round3 import metrics, null_strata, transfer
 from trial_ledger.backtest import Market, run_backtest
-from trial_ledger.hashing import hash_json
+from trial_ledger.hashing import hash_file, hash_json
 from trial_ledger.ledger import Ledger
 
 
@@ -70,3 +71,41 @@ def test_transfer_keeps_repeated_and_failed_selections_and_boundary_holdings(tmp
     market.returns[-1] += 0.01
     with pytest.raises(ValueError, match="replay differs"):
         transfer(rows, market, ledger)
+
+
+def test_fresh_runner_initializes_then_audits_its_ledger(tmp_path, monkeypatch):
+    dates = np.arange("2023-09-01", "2024-03-01", dtype="datetime64[D]").astype(str).tolist()
+    market = Market("synthetic", np.random.default_rng(2).normal(0, 0.01, len(dates)), dates)
+    row = {
+        "model": "synthetic",
+        "market": "btc",
+        "seed": 0,
+        "rep": 0,
+        "status": "ok",
+        "submitted_valid": True,
+        "selected_strategy": {"family": "momentum", "lookback": 20},
+    }
+    csv = tmp_path / "synthetic.csv"
+    csv.write_text("synthetic")
+    receipt = csv.with_suffix(".json")
+    receipt.write_text(json.dumps({"csv_sha256": hash_file(csv)}))
+    monkeypatch.setattr(round3, "ETH", csv)
+    monkeypatch.setattr(round3, "DATA_RECEIPT", receipt)
+    monkeypatch.setattr(round3, "OUT", tmp_path / "results")
+    monkeypatch.setattr(round3.Market, "from_csv", lambda *a, **kw: market)
+    monkeypatch.setattr(
+        round3.subprocess, "check_output", lambda *a, **kw: json.dumps({"rows": [row]}).encode()
+    )
+    monkeypatch.setattr(round3, "provenance", lambda config: {"config": config})
+    monkeypatch.setattr("sys.argv", ["experiments.round3"])
+    round3.main()
+    path = round3.OUT / "results.json"
+    first = path.read_bytes()
+    round3.main()
+    assert path.read_bytes() == first
+    ledger = Ledger(round3.OUT / "ledger")
+    record = json.loads(path.read_text())
+    assert ledger.verify(expect_head=record["ledger_head"], check_returns=True).ok
+    ledger.path.unlink()
+    with pytest.raises(ValueError, match="ledger verification failed"):
+        round3.main()

@@ -228,6 +228,8 @@ def main():
     existing = (
         json.loads((OUT / "results.json").read_text()) if (OUT / "results.json").exists() else None
     )
+    if existing is None and not ledger.dir.exists():
+        ledger._ensure()
     verified = ledger.verify(
         expect_head=existing["ledger_head"] if existing else None, check_returns=True
     )

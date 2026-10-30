@@ -1103,3 +1103,16 @@ and failed selection accounting, split-boundary holdings, benchmark cost,
 idempotent replay and changed-return rejection. Ruff check/format: PASS. No ETH
 price or outcome has been inspected yet. Commit this runner before download and
 evaluation; source-file hashes also accompany the later receipts.
+
+Round 3 iteration 1 measurement: downloader at f33722a9 completes all fixed ETH
+monthly checksum checks (exit 0). The first evaluation command `uv run --no-sync
+python -m experiments.round3` fails before any trial because verifying a new,
+uninitialized ledger reports a missing file. No strategy outcome is inspected.
+Logs: ignored `runs/round3/download.log` and `evaluate.log`. Focused correction:
+initialize a genuinely new ledger before verification; never initialize over
+missing files when an existing result claims a ledger. Add a synthetic-data
+startup/idempotent replay/deleted-ledger regression and commit the correction
+before the real rerun. Protocol, candidate set and costs are unchanged. The plan's
+local CI passes all steps and its push completes; receipt
+`results/ci_local/7e0084f8.json` records the dirty workspace honestly (the
+pre-existing untracked receipt and ongoing work).
