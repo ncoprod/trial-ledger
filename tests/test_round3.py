@@ -1,4 +1,5 @@
 import json
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -9,7 +10,7 @@ pytest.importorskip("openai")
 from experiments import round3
 from experiments.round3 import metrics, null_strata, transfer
 from trial_ledger.backtest import Market, run_backtest
-from trial_ledger.hashing import hash_file, hash_json
+from trial_ledger.hashing import hash_file, hash_json, sha256_hex
 from trial_ledger.ledger import Ledger
 
 
@@ -93,9 +94,9 @@ def test_fresh_runner_initializes_then_audits_its_ledger(tmp_path, monkeypatch):
     monkeypatch.setattr(round3, "DATA_RECEIPT", receipt)
     monkeypatch.setattr(round3, "OUT", tmp_path / "results")
     monkeypatch.setattr(round3.Market, "from_csv", lambda *a, **kw: market)
-    monkeypatch.setattr(
-        round3.subprocess, "check_output", lambda *a, **kw: json.dumps({"rows": [row]}).encode()
-    )
+    raw = json.dumps({"rows": [row]}).encode()
+    monkeypatch.setattr(round3, "SOURCE_SHA256", sha256_hex(raw))
+    monkeypatch.setattr(round3.subprocess, "check_output", lambda *a, **kw: raw)
     monkeypatch.setattr(round3, "provenance", lambda config: {"config": config})
     monkeypatch.setattr("sys.argv", ["experiments.round3"])
     round3.main()
@@ -111,10 +112,46 @@ def test_fresh_runner_initializes_then_audits_its_ledger(tmp_path, monkeypatch):
         round3.main()
 
 
-def test_committed_transfer_replays_without_rewriting_evidence(monkeypatch, capsys):
+def test_committed_transfer_replays_without_history_or_rewriting_evidence(
+    tmp_path, monkeypatch, capsys
+):
+    source = tmp_path / round3.SOURCE
+    source.parent.mkdir(parents=True)
+    source.write_bytes(Path(round3.SOURCE).read_bytes())
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    commit = [
+        "git",
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.invalid",
+        "-c",
+        "commit.gpgsign=false",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-qm",
+        "snapshot",
+    ]
+    subprocess.run(["git", "add", round3.SOURCE], cwd=tmp_path, check=True)
+    subprocess.run(commit, cwd=tmp_path, check=True)
+    assert (
+        subprocess.run(
+            ["git", "cat-file", "-e", round3.SOURCE_COMMIT],
+            cwd=tmp_path,
+            capture_output=True,
+        ).returncode
+        != 0
+    )
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("sys.argv", ["experiments.round3"])
     result = round3.OUT / "results.json"
     before = result.read_bytes()
     round3.main()
     assert "PASS: round-3 offline replay" in capsys.readouterr().out
     assert result.read_bytes() == before
+    source.write_bytes(source.read_bytes() + b"\n")
+    subprocess.run(["git", "add", round3.SOURCE], check=True)
+    subprocess.run(commit, check=True)
+    with pytest.raises(ValueError, match="source snapshot differs"):
+        round3.main()

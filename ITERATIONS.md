@@ -1159,3 +1159,46 @@ and `paper/generated/eth_transfer.tex`. Update the pipeline, ETH data attributio
 offline reproduce command and paper extension. No candidate, threshold, model,
 seed or inference budget is changed after inspecting ETH. Ruff check/format and
 `git diff --check`: PASS. Commit these inputs before rebuilding the PDF.
+
+Round 3 reporting is committed at 2dd41aca. Exact build command
+`tectonic -X compile paper/main.tex`: PASS, exit 0, 12 pages. Re-render every
+page; directly inspect pages 1, 2, 3, 6 and 9–12. Pages 4, 5, 7 and 8 exactly
+match prior reviewed render hashes. New tables fit, all references resolve and
+there are no overfull/underfull boxes. The inherited Tectonic internal
+bibliography six-pass warning remains; it does not leave unresolved citations.
+Source, empirical inputs, generated outputs, PDF and render checksums are in
+`paper/build.json` and `paper/generated/manifest.json`. Log: ignored
+`runs/round3/paper-build.log`.
+
+The source-checkpoint pre-push `scripts/ci_local.sh` passes all 16 steps at
+b355c79d: 145 Python tests plus one optional-native skip, 153 tests with Rust,
+three Rust tests, eight installed-wheel parity tests, all 265 original attempts
+replayed/audited with zero mismatches, stored-return PBO, native wheel/source
+builds and complete notices. Receipt: `results/ci_local/b355c79d.json`; log:
+ignored `runs/round3/push-results.log`. Its dirty flag honestly includes concurrent
+reporting work and local receipts. Run the same mandatory hook again on the final
+committed source and PDF. Hosted Actions is not claimed green: the owner reports
+minutes exhausted until about November 1 and specifically requests local CI.
+
+Stop this round: all fixed targets are met (complete ETH accounting and return
+objects, exact null-count reconciliation, generated compact tables and local CI).
+There is no second ETH candidate or outcome-guided tuning. The original headline
+sample and precision remain unchanged. Further NIM cohorts on reused seeds would
+mainly change the model mixture; independent market draws and future untouched
+data are the remaining scientific limitations, not a failed implementation or
+weak parameter search. No NIM request, heavy-ML job or Kaggle GPU was used.
+
+Round 3 iteration 4 (checkout portability, final integration review): GitHub's
+default shallow checkout does not contain the historical source commit requested
+by the first transfer replayer. The prior local gate uses a full clone and
+cannot reveal this gap. Read the current committed source blob and require the
+frozen SHA-256 instead; keep the historical source identifier and every measured
+result unchanged. Extend the committed-evidence regression with an isolated
+single-snapshot repository that lacks that historical object; exact replay must
+pass, and committing a changed source blob must fail before evaluation. Commands:
+`uv run --no-sync pytest tests/test_round3.py` (four PASS) and
+`uv run --no-sync python -m experiments.round3` (exact replay PASS). No new trial
+is appended and no raw evidence or paper number changes. Re-run the full local
+gate on the final commit. An earlier PDF packaging commit attempt also collided
+with a concurrent `git status` index lock; it changed no files or history. Retry
+repository mutations sequentially.

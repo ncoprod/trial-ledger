@@ -30,6 +30,7 @@ from .provenance import provenance
 SOURCE_COMMIT = "83d6e48dfd6dcbef66124355556303239c03e727"
 PLAN_COMMIT = "7e0084f83ba02d84e00d862d7a6a7574707f4e3f"
 SOURCE = "experiments/results/causal-v2/episodes.json"
+SOURCE_SHA256 = "cd5e6a77f31c0844926dd94d0e9d89a58814994ad41eb85802aff970ba54636d"
 OUT = Path(__file__).parent / "results/round3"
 ETH = Path(__file__).parent / "data/ethusdt_1d.csv"
 DATA_RECEIPT = ETH.with_suffix(".json")
@@ -217,7 +218,9 @@ def main():
     if parser.parse_args().download:
         download_eth()
         return
-    raw = subprocess.check_output(["git", "show", f"{SOURCE_COMMIT}:{SOURCE}"])
+    raw = subprocess.check_output(["git", "show", f"HEAD:{SOURCE}"])
+    if sha256_hex(raw) != SOURCE_SHA256:
+        raise ValueError("source snapshot differs from the frozen round-3 input")
     rows = json.loads(raw)["rows"]
     data_receipt = json.loads(DATA_RECEIPT.read_text())
     if hash_file(ETH) != data_receipt["csv_sha256"]:
