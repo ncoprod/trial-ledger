@@ -1066,3 +1066,20 @@ paper/make_tables.py`: PASS from committed result snapshot a9853d4a; all empiric
 input and generated-output hashes verify. The abstract picks up the corrected
 rounded range through `paper/generated/numbers.tex`. Commit these inputs before
 the exact PDF rebuild and final CI gate.
+
+Final-review source fixes are committed and pushed as 7c213aa6. Exact command
+`tectonic -X compile paper/main.tex`: PASS, exit 0, 11 pages. Re-render all pages;
+visually inspect changed page 1 and verify that pages 2–11 match the prior reviewed
+render hashes exactly. Extracted text changes only the abstract's rounded speedup
+from 182–1135 to 182–1,136. No unresolved references or overfull/underfull boxes;
+the pre-existing Tectonic internal bibliography rerun warning remains. Build
+source/input hashes, PDF checksum and render hashes are in `paper/build.json`;
+log: ignored `runs/final-review/paper-build.log`.
+
+Actions run 41005869061 cannot start any job: GitHub reports failed account
+payments or a spending limit that needs increasing. Five jobs fail and two are
+cancelled before any step executes; this is not a test failure. Receipt: ignored
+`runs/final-review/source-ci-annotations.json`, retrieved through the check-run
+annotations API. Ask the owner to restore Actions billing while completing the
+PDF commit. Keep the local 149-test/three-Rust-test success distinct from the
+blocked hosted CI result; do not alter workflow coverage or account billing.
