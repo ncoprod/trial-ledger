@@ -242,20 +242,32 @@ def main():
     table(
         "paired",
         "Primary paired comparisons at 0.95. Discordant decisions and exact "
-        "McNemar $p$ are distinct from continuous-score signed-rank tests (Holm adjusted).",
-        ["Subject", "Pairs", "Claim only", "Ledger only", "$p_{McN}$", "$p_{W,Holm}$"],
+        "McNemar $p$ are distinct from continuous-score signed-rank tests (Holm adjusted). "
+        "$\\Delta=\\mathrm{DSR}(N_C)-\\mathrm{DSR}(N_L)$.",
+        [
+            "Subject",
+            "Pairs",
+            "Claim only",
+            "Ledger only",
+            "Median $\\Delta$",
+            "$p_{McN}$",
+            "$p_{W,Holm}$",
+        ],
         [
             [
                 NAMES[m],
                 t["episodes"],
                 t["claimed_only_pass"],
                 t["ledger_only_pass"],
+                f"{t['median_claimed_minus_ledger']:.4g}"
+                if t["median_claimed_minus_ledger"] is not None
+                else "--",
                 pvalue(t["mcnemar_exact_two_sided_p"]),
                 pvalue(t["wilcoxon_holm_p"]),
             ]
             for m, t in tests.items()
         ],
-        "lrrrrr",
+        "lrrrrrr",
     )
     sensitivity = [
         [

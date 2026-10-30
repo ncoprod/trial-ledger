@@ -957,3 +957,10 @@ requests. The new queues load 4ed35896 (including empty-ledger initialization);
 backtester, service and client remain byte-identical to the frozen protocol.
 Verification command: `uv run --no-sync python -m runs.save_inference_launches`.
 API concurrency remains at most two globally, one serial requester per held slot.
+
+Paper reporting iteration: a continuous-score test needs an effect size alongside
+its p-value. Generate each model's median claimed-minus-ledger DSR difference
+directly from the committed paired result, with an explicit sign convention and
+missing-value marker. No score, test or inference protocol changes. Commands:
+`uv run --no-sync ruff check paper/make_tables.py` and `ruff format --check`:
+PASS. Final table generation remains gated on the complete committed sample.
