@@ -248,15 +248,28 @@ def main():
         acceptance_rows,
         "lrrr",
     )
+    differences = {
+        model: [
+            r["dsr_claimed"] - r["dsr_ledger"]
+            for r in by_model[model]
+            if r["market"] != "btc"
+            and r["status"] == "ok"
+            and r["submitted_valid"]
+            and r.get("dsr_claimed") is not None
+        ]
+        for model in tests
+    }
+    assert all(len(differences[m]) == t["episodes"] for m, t in tests.items())
     table(
         "paired",
         "Primary paired comparisons at 0.95. Discordant decisions and exact "
         "McNemar $p$ (unadjusted) are distinct from continuous-score signed-rank tests "
         "(Holm adjusted). "
+        "Parentheses count nonzero score differences used by the signed-rank test. "
         "$\\Delta=\\mathrm{DSR}(N_C)-\\mathrm{DSR}(N_L)$.",
         [
             "Subject",
-            "Pairs",
+            r"\shortstack{Pairs\\(nonzero)}",
             "Claim only",
             "Ledger only",
             "Median $\\Delta$",
@@ -266,7 +279,7 @@ def main():
         [
             [
                 NAMES[m],
-                t["episodes"],
+                f"{t['episodes']} ({sum(d != 0 for d in differences[m])})",
                 t["claimed_only_pass"],
                 t["ledger_only_pass"],
                 f"{t['median_claimed_minus_ledger']:.4g}"
