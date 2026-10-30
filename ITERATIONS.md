@@ -944,3 +944,16 @@ objects. Commands: `uv run --no-sync python -m experiments.store_returns`, then
 Completed failure receipts and exact cache prefixes are included; active-episode
 ledgers, partial store-count receipts and acceptance aggregates are excluded.
 Logs: ignored `runs/review-current-store.log` and `runs/stage-review-current.log`.
+
+Operational iteration: the combined Nemotron queue waits without requests and
+would later serialize both models even if both shared slots became available.
+Cancel only that unstarted process after checking its log, lack of model run
+directories and lack of slot ownership. Requeue Lightning and Ultra as separate
+serial `--workers 1 --resume` model batches with the same fixed seeds, tool budget,
+prompt and inference settings. Original supervisor records termination; no episode
+or financial trial is restarted or added. Commands and timestamps are preserved
+in `causal-v2/nim_launches.json`, including explicit cancellation before zero
+requests. The new queues load 4ed35896 (including empty-ledger initialization);
+backtester, service and client remain byte-identical to the frozen protocol.
+Verification command: `uv run --no-sync python -m runs.save_inference_launches`.
+API concurrency remains at most two globally, one serial requester per held slot.
