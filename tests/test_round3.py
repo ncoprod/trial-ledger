@@ -109,3 +109,12 @@ def test_fresh_runner_initializes_then_audits_its_ledger(tmp_path, monkeypatch):
     ledger.path.unlink()
     with pytest.raises(ValueError, match="ledger verification failed"):
         round3.main()
+
+
+def test_committed_transfer_replays_without_rewriting_evidence(monkeypatch, capsys):
+    monkeypatch.setattr("sys.argv", ["experiments.round3"])
+    result = round3.OUT / "results.json"
+    before = result.read_bytes()
+    round3.main()
+    assert "PASS: round-3 offline replay" in capsys.readouterr().out
+    assert result.read_bytes() == before

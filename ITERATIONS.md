@@ -1116,3 +1116,29 @@ before the real rerun. Protocol, candidate set and costs are unchanged. The plan
 local CI passes all steps and its push completes; receipt
 `results/ci_local/7e0084f8.json` records the dirty workspace honestly (the
 pre-existing untracked receipt and ongoing work).
+
+Round 3 iteration 2 measurement at b355c79d: PASS. The focused initialization
+correction permits the unchanged fixed plan to run. All 105 monthly archives
+verify and yield 3,195 ETH close dates. Retain all 25 BTC selections; 15 distinct
+rules plus the buy-and-hold reference produce 16 logged full-series evaluations.
+Five Codex selections repeat one rule: its ETH research/later Sharpe is
+1.117128263208481 / 1.4026218579826286, versus the later buy-and-hold Sharpe
+0.4232569052653813. All five model/control groups remain; none is selected for a
+rerun. Sources: `experiments/results/round3/results.json`, anchored `ledger/`,
+and `experiments/data/ethusdt_1d.{csv,json}`. These are descriptive results on
+correlated assets, not an independent alpha test or five independent rules.
+
+Commands: `uv run --no-sync python -m experiments.round3` (evaluate, then verify
+offline): PASS, exact candidate/stratum arithmetic and unchanged ledger head.
+`uv run --no-sync trial-ledger --dir experiments/results/round3/ledger pbo`:
+PASS from all committed return objects. Logs: ignored `evaluate-fixed.log` and
+`pbo.log` under `runs/round3/`. New synthetic regressions pass; add the committed
+snapshot replay to normal CI. Original 265-search headline artifacts remain
+byte-identical. Commit complete raw evidence before paper/table generation.
+
+Pre-commit artifact check: `git diff --cached --check` initially flags the CSV
+writer's standard CRLF line endings. Declare `cr-at-eol` for the ETH CSV in
+`.gitattributes`, preserving the exact downloaded-normalization bytes and all
+recorded hashes. This is a packaging correction; no price, return, strategy or
+statistic changes. The subsequent source-checkpoint push runs the full local CI
+through the required pre-push hook.
