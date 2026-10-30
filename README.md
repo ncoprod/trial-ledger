@@ -1,24 +1,32 @@
 # trial-ledger
 
+[Paper (PDF)](paper/main.pdf) · [LaTeX and generated inputs](paper/) · [Protocol](experiments/PROTOCOL.md)
+
 **Count the backtests your AI agent actually ran.**
 
-> **Superseded study:** independent review found future-dependent volatility sizing.
-> All empirical agent and BTC numbers below describe the old implementation and
-> are withdrawn as evidence of causal strategies or a clean holdout. A fixed-target
-> correction and fresh adaptive searches are underway under
-> [causal-v2](experiments/PROTOCOL.md). The original artifacts remain preserved;
-> rescoring them is not a replacement for fresh searches.
+**105 real Codex CLI attempts** (`gpt-6.1-sol`, medium reasoning): on constructed
+zero-conditional-mean markets, naive PSR accepts **86/100** valid completed
+picks; ledger-N DSR accepts **0/100**. [Episode metrics](experiments/results/causal-v2/episodes.json); [paired results](experiments/results/causal-v2/paired_tests.json).
 
-**65 real Codex CLI episodes** (`gpt-6.1-sol`, medium reasoning): on zero-alpha markets, naive PSR accepts **49/58** valid picks, while ledger-N DSR accepts **0/58**. Both rates meet the Wilson precision target. [2 invalid null submissions are retained](experiments/results/episodes.json); [paired results](experiments/results/paired_tests.json).
+The NIM replication accepts **109/118 naive** versus
+**1/118 ledger-N DSR** picks. NIM agents under-report distinct N in
+**65/117 positive null-market claims**, with a maximum ledger/claim
+ratio of **15.640×**. [paired results](experiments/results/causal-v2/paired_tests.json).
 
-The NIM replication has **107/118 naive passes** versus **1/118 DSR passes**; **51/120 claims under-report N** (maximum **17.125×**). Claimed-N and ledger-N DSR make the same primary decisions. [paired results](experiments/results/paired_tests.json).
+The Rust CSCV kernel is **182–1,135× faster than pypbo** on the memory-feasible
+Linux cases, with checked outputs. [Benchmark and conditions](benchmarks/results/linux/pbo_benchmark.json).
 
-The Rust CSCV kernel is **182–1,135× faster than pypbo** on the memory-feasible isolated Linux cases, with checked outputs. [Benchmark and conditions](benchmarks/results/linux/pbo_benchmark.json).
+`trial-ledger` captures backtests through MCP, shell hooks or an exec wrapper,
+stores an externally anchored hash chain and compressed returns, and computes
+Deflated Sharpe Ratio (DSR) and Probability of Backtest Overfitting (PBO).
+A sweep records its configurations, rather than one tool invocation.
 
-`trial-ledger` captures backtests through MCP, shell hooks or an exec wrapper, stores
-an externally anchored hash chain and compressed return series, and computes the
-Deflated Sharpe Ratio (DSR) and Probability of Backtest Overfitting (PBO). A sweep
-counts its configurations, rather than one tool invocation.
+> **Correction history:** independent review found future-dependent volatility
+> sizing in the first study. Its [225 receipts and old results](experiments/results/README.md)
+> remain superseded evidence. These results use fresh searches with a fixed causal
+> target under the [corrected protocol](experiments/PROTOCOL.md), not rescored old
+> winners. Frozen null seeds are reused; the versions are not independent
+> replications. The BTC period had already been examined and remains diagnostic.
 
 **Code is MIT. Binance-derived data and research artifacts have non-commercial
 restrictions (CC BY-NC-SA 4.0 plus Binance Vision terms).**
@@ -39,50 +47,50 @@ flowchart LR
 
 ## What the experiment establishes
 
-The same fixed search protocol asks agents to find a strategy with annualised
-Sharpe above the target in [the evaluation configuration](experiments/results/provenance.json).
-Null markets have zero conditional mean before costs. NIM models run in our tool
-loop; Codex runs as a real CLI process in a fresh temporary workspace with MCP and
-hooks configured. Its scored evaluations use MCP; its shell hook is smoke-tested
-live. Both search predefined rule families, rather than arbitrary strategy code.
-[Protocol](experiments/PROTOCOL.md).
+The fixed search protocol asks agents to find an annualised Sharpe above the target
+in [the recorded configuration](experiments/results/causal-v2/provenance.json). Null markets have zero
+conditional mean before costs. NIM models run in our tool loop; Codex runs as a real
+CLI process in a fresh temporary workspace with MCP and hooks configured. Scored
+CLI evaluations use MCP; the shell hook is smoke-tested live. Both search predefined
+rule families. [Protocol](experiments/PROTOCOL.md).
 
-| Subject | Null attempts (valid picks) | Naive PSR passes [Wilson 95% CI] | Claimed-N DSR passes | Ledger-N DSR passes [Wilson 95% CI] | Under-reported N [Wilson 95% CI] | Source |
-|---|---:|---|---:|---|---:|---|
-| Codex CLI | 60 (58) | 49/58 [73.07%, 91.62%] | 0/58 | 0/58 [0.00%, 6.21%] | 0/60 [0.00%, 6.02%] | [JSON](experiments/results/paired_tests.json) |
-| NIM tool loops | 120 (118) | 107/118 [84.08%, 94.71%] | 1/118 | 1/118 [0.15%, 4.64%] | 51/120 [34.02%, 51.44%] | [JSON](experiments/results/paired_tests.json) |
+| Subject | Null attempts (valid picks) | Naive PSR [Wilson 95% CI] | Claimed-N DSR | Ledger-N DSR [Wilson 95% CI] | Under-reported N [Wilson 95% CI] | Source |
+|---|---:|---|---:|---|---|---|
+| Codex CLI | 100 (100) | 86/100 [77.86%, 91.47%] | 0/100 | 0/100 [0.00%, 3.70%] | 0/100 [0.00%, 3.70%] | [JSON](experiments/results/causal-v2/paired_tests.json) |
+| NIM tool loops | 120 (118) | 109/118 [86.14%, 95.94%] | 1/117 | 1/118 [0.15%, 4.64%] | 65/117 [46.52%, 64.24%] | [JSON](experiments/results/causal-v2/paired_tests.json) |
 
-Acceptance rates describe valid completed null-market picks; failures remain in
-the attempt accounting and are never replaced with a best ledger trial. Trial-count
-accounting uses all positive claims, including invalid final strategy answers.
-Intervals are nominal Wilson intervals. Models reuse market seeds, so pooled iid
-inference is not claimed; market/seed cluster-bootstrap intervals are also in
-[the paired results](experiments/results/paired_tests.json). When no picks pass, the
-percentile bootstrap collapses to zero; retain the Wilson upper bound.
+Acceptance denominators use valid completed null picks; all failures remain in
+attempt accounting and are never replaced by a best ledger trial. Count accounting
+uses every positive claim, including invalid strategy answers. Missing or nonpositive
+claims are reported separately and never classified as accurate. Wilson intervals
+are nominal: models reuse market seeds, and pooled iid inference is not claimed.
+Market/seed cluster-bootstrap intervals are also reported. With zero successes,
+the percentile bootstrap collapses; retain the Wilson upper bound.
 
-![Null-market acceptance with Wilson intervals](experiments/results/figures/false_discovery.png)
+The four headline Wilson half-widths are 6.81, 1.85, 4.90, 2.25 percentage points (Codex naive/DSR, NIM naive/DSR), against the 10-point target. [paired results](experiments/results/causal-v2/paired_tests.json).
 
-At the fixed acceptance threshold, **claimed N and ledger N change no decisions** in either cohort; every model-specific exact McNemar p-value is 1.0. This does not establish equivalence. Codex has no observed under-reporting of distinct trials; the NIM counts and continuous-score Wilcoxon tests with Holm correction are in [paired results](experiments/results/paired_tests.json).
+![Corrected null-market acceptance with Wilson intervals](experiments/results/causal-v2/figures/false_discovery.png)
 
-**When can N change a decision?** In the retained Codex GARCH seed 10 pick, ledger N = 30 gives DSR = 0.7341. Replacing it with a **hypothetical** claim of N = 7 gives DSR = 0.9613, crossing the primary threshold. The agent actually claimed N = 30. Observed score-boundary intervals and a controlled regression test are also provided: [sensitivity results](experiments/results/paired_tests.json), [test](tests/test_paired_tests.py). These are conditions for a possible effect, not additional observed false acceptances.
+At the fixed primary threshold, claimed N and ledger N differ on **0/217 paired valid agent null picks**. Unadjusted model-specific McNemar tests and continuous-score Wilcoxon tests with Holm correction are in [paired results](experiments/results/causal-v2/paired_tests.json). The absence of observed decision discordance does not establish equivalence.
 
-In the largest observed under-report (Nemotron Ultra, GARCH seed 17), the claim of
-16 against ledger N = 274 gives DSR 0.7645 with claimed N versus 0.3332 with ledger N:
-both reject. [Episode metrics](experiments/results/episodes.json).
+With observed claims, the six exploratory thresholds give claimed-only/ledger-only acceptances of 0.5: 15/1; 0.8: 1/0; 0.9: 0/0; 0.95: 0/0; 0.975: 0/0; 0.99: 0/0. These boundary checks keep the primary threshold fixed. [paired results](experiments/results/causal-v2/paired_tests.json).
 
-The count is auditable even when it does not change a verdict. The DSR still uses
-an estimated cross-sectional Sharpe variance and correlated trial counts; it does
-not guarantee that a null pick will be rejected. Boundary thresholds and hypothetical
-undercounts are exploratory, separately labelled, and never replace the primary
-threshold in [the protocol](experiments/PROTOCOL.md).
+**When can N change a decision?** The prespecified exploratory counterfactuals replace a claimed count with fractions of ledger N. At fractions 0.5: 1/218 crossings, 0.25: 9/218 crossings, 0.1: 28/218 crossings, 0.02: 130/218 crossings, a claimed-N acceptance becomes a ledger-N rejection. These are hypothetical counts, not observed claims. [paired results](experiments/results/causal-v2/paired_tests.json).
 
-On BTC, the 5 fixed Codex final picks (3 distinct specs) have median in-sample Sharpe 1.115 and held-out Sharpe 0.568. Every pick declines out of sample. This is one asset and one held-out period, with repeated specs, not independent evidence of alpha. [Full-precision BTC results](experiments/results/episodes.json).
+The first recorded counterfactual example (codex-cli/gpt-6.1-sol, signflip seed 49) changes N from ledger 7 to hypothetical 3, moving DSR from 0.7921 to 0.9542. Its actual claim was 7. [paired results](experiments/results/causal-v2/paired_tests.json); [boundary regression](tests/test_paired_tests.py).
 
-Full per-model results, failures, individual DSR passes and BTC picks:
-[RESULTS.md](experiments/results/RESULTS.md),
-[full-precision episode metrics](experiments/results/episodes.json),
-[trial-count figure](experiments/results/figures/trial_count.png),
-[BTC figure](experiments/results/figures/btc_oos.png).
+The largest observed NIM under-report is 391/25 (nvidia/nemotron-3-ultra-550b-a55b, garch seed 12). Claimed-N DSR is 0.4160; ledger-N DSR is 0.0915. [episode metrics](experiments/results/causal-v2/episodes.json).
+
+DSR uses estimated cross-sectional Sharpe dispersion and correlated counts;
+a recorded N does not guarantee correct null rejection. No HAC correction is
+implemented. Other thresholds and count scenarios remain exploratory and do not
+replace the fixed primary rule.
+
+On the **previously examined BTC diagnostic**, 5 Codex attempts yield 5 valid picks and 1 distinct rule. Their median annualised Sharpe is 1.167 in research and 0.552 in the later period; 5/5 decline. This is one exposed period with repeated rules, not independent evidence of alpha. [episode metrics](experiments/results/causal-v2/episodes.json).
+
+Per-model outcomes, every failure status, DSR passes and BTC picks:
+[RESULTS.md](experiments/results/causal-v2/RESULTS.md), [full precision](experiments/results/causal-v2/episodes.json),
+[trial counts](experiments/results/causal-v2/figures/trial_count.png), [BTC figure](experiments/results/causal-v2/figures/btc_oos.png).
 
 ## Capture and audit
 
@@ -137,7 +145,7 @@ trial-ledger --dir experiments/results/causal-v2/runs/random-search/signflip-s0-
 trial-ledger --dir experiments/results/causal-v2/runs/random-search/signflip-s0-r0/ledger pbo
 ```
 
-The latest restoration snapshot verifies **225 ledgers** and **35,108 distinct per-ledger trial series**, with **28,613 shared compressed objects**. [Integrity receipt and command](experiments/results/returns_integrity.json). The CLI reads these objects directly; [a recorded PBO result](experiments/results/pbo_cli_example.json) is committed alongside the ledgers.
+The corrected store verifies **265 ledgers** and **36,163 distinct per-ledger trial series**, backed by **29,609 shared objects**. [Integrity receipt and command](experiments/results/causal-v2/returns_integrity.json). The CLI reads them directly; [a recorded PBO result](experiments/results/causal-v2/pbo_cli_example.json) is committed alongside the ledgers. Superseded return objects remain separately preserved.
 
 Return objects are compressed and addressed by the SHA-256 of canonical float64
 content; loading verifies decompressed bytes. Old uncompressed objects remain
@@ -157,6 +165,8 @@ uv sync --all-extras --group dev --group experiments --group bench
 uv run --no-sync python -m experiments.run reproduce
 uv run --no-sync pytest
 CARGO_BUILD_JOBS=2 cargo test --release --manifest-path rust/Cargo.toml
+uv run --no-sync python paper/make_tables.py
+tectonic -X compile paper/main.tex
 ```
 
 Reproduction makes no inference calls: it replays committed NIM responses, audits
@@ -184,18 +194,20 @@ The CLI runner invokes `codex exec -m gpt-6.1-sol -c model_reasoning_effort=medi
 with isolated configuration. NIM batches take one shared atomic mkdir slot and
 make serial requests, retry transient failures with backoff, cache each response,
 and release the slot on exit or termination. Long-job diagnostics stay in ignored
-root `runs/`; research receipts are committed under `experiments/results/runs/`.
+root `runs/`; research receipts are committed under `experiments/results/causal-v2/runs/`.
 
 ## Provenance
 
 | Evidence | Result and reproduction record |
 |---|---|
-| Acceptance, counts, submitted specs, moments and held-out metrics | [episodes.json](experiments/results/episodes.json); [summary.json](experiments/results/summary.json) |
-| Decisions, uncertainty, paired tests and exploratory conditions | [paired_tests.json](experiments/results/paired_tests.json), including analysis command, source hashes, seeds and configuration |
-| Generation receipts and artifact checksums | [provenance.json](experiments/results/provenance.json); [episode receipts](experiments/results/runs/); [response caches](experiments/cache/) |
+| Acceptance, counts, submitted specs, moments and BTC diagnostic metrics | [episodes.json](experiments/results/causal-v2/episodes.json); [summary.json](experiments/results/causal-v2/summary.json) |
+| Decisions, uncertainty, paired tests and exploratory conditions | [paired_tests.json](experiments/results/causal-v2/paired_tests.json), including analysis command, source hashes, seeds and configuration |
+| Generation receipts and artifact checksums | [provenance.json](experiments/results/causal-v2/provenance.json); [episode receipts](experiments/results/causal-v2/runs/); [response caches](experiments/cache/) |
 | Corrected NIM launch commands and loaded source snapshot | [nim_launches.json](experiments/results/causal-v2/nim_launches.json); exact seeds, model aliases and original batch commands |
-| Stored returns and frozen inputs | [returns_integrity.json](experiments/results/returns_integrity.json); [GARCH archive manifest](experiments/data/garch_markets.json) |
+| Stored returns and frozen inputs | [returns_integrity.json](experiments/results/causal-v2/returns_integrity.json); [GARCH archive manifest](experiments/data/garch_markets.json) |
 | Native performance and output equality | [isolated Linux comparison](benchmarks/results/linux/kernel_interleaved.json); [full Linux benchmark](benchmarks/results/linux/pbo_benchmark.json); [runner receipt](benchmarks/results/linux/run.json) |
+| Review regressions and complete-sample CI | [review_verification.json](experiments/results/causal-v2/review_verification.json); fixes and failed iterations in [ITERATIONS.md](ITERATIONS.md) |
+| Paper tables, figure and PDF build | [committed input/output hashes](paper/generated/manifest.json); [build and page-review receipt](paper/build.json); [verified reference metadata](paper/reference_verification.json) |
 
 Hosted weight revisions were not pinned or recorded. Model aliases, CLI
 versions, settings and available source snapshots are recorded; Hugging Face
@@ -256,7 +268,7 @@ Nothing is published to PyPI.
   effective N is only a heuristic. The DSR's estimated Sharpe dispersion can be
   too small; count capture does not solve that statistical assumption.
 - A valid final specification can lie outside the recorded search; this is flagged
-  in [episode metrics](experiments/results/episodes.json). Analysis scores that
+  in [episode metrics](experiments/results/causal-v2/episodes.json). Analysis scores that
   submitted specification and never substitutes the best logged trial.
 - CSCV conditions on the logged trial universe. The agent formed that universe
   using the whole research window; its search is not rerun within each fold,
