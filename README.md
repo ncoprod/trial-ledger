@@ -1,5 +1,7 @@
 # trial-ledger
 
+CI: GitHub Actions; local fallback `scripts/ci_local.sh` (receipts in results/ci_local/) while hosted minutes are unavailable.
+
 - **What:** Audit AI-agent backtests with a tamper-evident trial ledger.
 - **Result:** Codex null picks: **86/100** pass naive PSR; **0/100** pass ledger-N DSR. [Results](experiments/results/causal-v2/paired_tests.json).
 - **Run:** `uv sync --extra mcp --group experiments && uv run python -m experiments.run reproduce` ([setup](#reproduce)).
