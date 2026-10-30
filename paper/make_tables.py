@@ -84,8 +84,17 @@ def acceptance_plot(headlines):
             yerr=np.array([means - lower, upper - means]) * 100,
             capsize=3,
         )
+        for position, result in zip(x + offset * 0.24, values, strict=True):
+            ax.text(
+                position,
+                100 * result["wilson_95_ci"][1] + 1.8,
+                f"{result['passes']}/{result['n']}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+            )
     ax.set(xticks=x, xticklabels=["Codex CLI", "NIM models"], ylim=(0, 108))
-    ax.set_ylabel("Valid null picks accepted (%)")
+    ax.set_ylabel("Scored valid null picks accepted (%)")
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.17), ncol=3, fontsize=9)
     ax.spines[["top", "right"]].set_visible(False)
     fig.savefig(OUT / "acceptance.png", dpi=300)

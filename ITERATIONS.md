@@ -964,3 +964,31 @@ directly from the committed paired result, with an explicit sign convention and
 missing-value marker. No score, test or inference protocol changes. Commands:
 `uv run --no-sync ruff check paper/make_tables.py` and `ruff format --check`:
 PASS. Final table generation remains gated on the complete committed sample.
+
+Bibliographic follow-up: the official JSTOR issue contents confirm Holm's article
+exists, but the attempted identifier still returns HTTP 404 from both Crossref
+and the DOI handle API. Retain the omission rather than invent an identifier;
+the method's name and formula remain stated without a novelty claim. Command:
+`uv run --no-sync python -` using `urllib.request` against both recorded endpoints.
+Result and UTC/source metadata: `paper/reference_verification.json`. The eight
+previously verified references are unchanged. This is not a research trial.
+
+Paper figure follow-through: annotate exact passes/scored on every bar, since a
+missing positive N claim can reduce the claimed-N denominator. Place labels above
+their confidence bounds and state statistic-specific scoring in the caption.
+No estimates change. Initial Ruff check FAILs B905 (zip without an explicit
+strict flag); assert matching cohort lengths with `strict=True`, then check/format
+PASS. Final visual verification occurs on the complete-sample figure and PDF.
+
+Complete gpt-oss checkpoint: all 45 fixed attempts now have receipts, with raw
+statuses 43 ok and two `api_error: RuntimeError` (GARCH seed 2 and signflip seed 17).
+The batch exits 1 because those requests exhaust the unchanged timeout/retry
+policy; no failed seed is replaced. Lightning acquires the released slot and
+Ultra remains queued. Commands: original saved gpt-oss launch, then `uv run
+--no-sync python -m experiments.store_returns` and `uv run --no-sync python -m
+runs.stage_review_raw`: PASS. The staged 175-receipt snapshot verifies 15,103
+distinct per-ledger series and 14,631 referenced shared objects, with no restoration.
+Logs: ignored `runs/review-gpt-complete-store.log` and
+`runs/stage-review-gpt-complete.log`. Partial count receipts and acceptance
+aggregates remain excluded. Raw ok status does not substitute for final submission
+validation in the later complete-sample analysis.
