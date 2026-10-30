@@ -248,6 +248,8 @@ Nothing is published to PyPI.
 
 - One prompt, constrained strategy families and visible sweep sizes. The findings
   do not estimate arbitrary coding-agent search behaviour or deliberate evasion.
+- Model identities, interfaces and tool-use patterns differ across cohorts;
+  their contrasts do not isolate an interface effect.
 - Nominal episode intervals do not remove dependence from shared market inputs;
   the cluster bootstrap and model-specific paired tests expose that limitation.
 - Ledger N deduplicates identical returns. Related trials remain correlated, and

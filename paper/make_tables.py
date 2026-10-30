@@ -251,7 +251,8 @@ def main():
     table(
         "paired",
         "Primary paired comparisons at 0.95. Discordant decisions and exact "
-        "McNemar $p$ are distinct from continuous-score signed-rank tests (Holm adjusted). "
+        "McNemar $p$ (unadjusted) are distinct from continuous-score signed-rank tests "
+        "(Holm adjusted). "
         "$\\Delta=\\mathrm{DSR}(N_C)-\\mathrm{DSR}(N_L)$.",
         [
             "Subject",

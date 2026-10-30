@@ -992,3 +992,17 @@ Logs: ignored `runs/review-gpt-complete-store.log` and
 `runs/stage-review-gpt-complete.log`. Partial count receipts and acceptance
 aggregates remain excluded. Raw ok status does not substitute for final submission
 validation in the later complete-sample analysis.
+
+Interpretation audit: explicitly state that cohort contrasts confound model
+identity, execution interface and chosen tool-use patterns. Add this limitation
+to the paper and README. No causal interface comparison is claimed; the fixed
+within-pick PSR/DSR and claimed/ledger comparisons remain as specified. Prose-only
+change; no new financial evaluation or experiment setting change.
+
+Multiplicity wording audit: label the existing model-specific exact McNemar
+p-values as unadjusted and descriptive; distinguish them from the prespecified
+Holm-adjusted continuous-score tests. No statistic, family or threshold changes,
+and no family-wide rejection claim is based on the raw decision p-values.
+Ruff check/format PASS for the table generator; final results remain gated.
+State the existing signed-rank normal approximation, dropped zeros and lack of
+continuity correction explicitly. These describe the unchanged SciPy call.
