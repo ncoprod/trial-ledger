@@ -22,9 +22,12 @@ Loop: run -> measure -> diagnose -> one focused change -> rerun. Stop when targe
 are met, or after two consecutive focused iterations without real improvement and
 an evidence-backed explanation of a remaining structural gap. Statistical targets
 are evidence targets, never permission to tune seed selection or acceptance rates.
-The held-out BTC period is evaluated once for each fixed final submitted candidate;
-no strategy or experiment-protocol tuning uses that period. Reproduction repeats
-arithmetic on the fixed candidates, not candidate selection.
+The originally designated BTC period was exposed before the independent review,
+and future-dependent sizing invalidated its clean-holdout interpretation. The
+corrected study therefore labels it a previously exposed diagnostic. No strategy
+or experiment-protocol tuning uses diagnostic returns. Reproduction repeats
+arithmetic on fixed candidates, rather than selecting new ones. Earlier entries
+retain the terminology and outcomes of their historical evaluation version.
 
 ## Iteration 0 — baseline
 
@@ -922,3 +925,22 @@ later agent changes initialize empty ledgers and attach control provenance.
 No live batch is restarted and no inference setting or feedback changes.
 Latest source checkpoint e2af89ee passes all seven Actions jobs in run 40980106091,
 including 138 Python tests in each native build and the distribution notice checks.
+
+Failure-prefix verification after the second retained API failure: command
+`RAYON_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 uv run
+--no-sync python -m experiments.run replay-check` at f608a330: PASS. Audit of
+170 completed corrected receipts finds 63 cache/control replays, two exact failed
+cache-prefix audits and 105 CLI ledger audits, zero mismatches. Separately checks
+all 225 superseded ledger anchors and stored series without rescoring them.
+Result: ignored `runs/review-current-replay.log` (exit 0). No API calls or partial
+acceptance estimates are made. Add a result-version index while preserving all
+original artifact bytes; correct the stopping-rule paragraph's obsolete clean-BTC
+wording to the explicitly exposed diagnostic interpretation.
+
+Raw checkpoint after that audit: 170 completed receipts (105 Codex, 40 gpt-oss,
+25 controls), 14,132 distinct per-ledger series and 13,698 referenced compressed
+objects. Commands: `uv run --no-sync python -m experiments.store_returns`, then
+`uv run --no-sync python -m runs.stage_review_raw`: PASS, no restoration needed.
+Completed failure receipts and exact cache prefixes are included; active-episode
+ledgers, partial store-count receipts and acceptance aggregates are excluded.
+Logs: ignored `runs/review-current-store.log` and `runs/stage-review-current.log`.
