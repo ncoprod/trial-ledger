@@ -1092,3 +1092,14 @@ and explicit heterogeneity provide more independent information than adding
 models on already reused seeds. Success criteria and descriptive-only limits are
 in that plan. Use `scripts/ci_local.sh` through the pre-push hook while hosted
 Actions minutes are exhausted; retain the pre-existing untracked local receipt.
+
+Round 3 iteration 1 (implementation, before ETH download): add a fixed-source
+runner with checksum-verified, resumable monthly ETH downloads, full-series
+backtests followed by return slicing, an entry-cost-matched buy-and-hold reference,
+trial recording and fail-closed offline replay. Add null-stratum decomposition
+without changing the original results. `uv run --no-sync pytest
+tests/test_round3.py`: two PASS, checking exact headline reconciliation, repeated
+and failed selection accounting, split-boundary holdings, benchmark cost,
+idempotent replay and changed-return rejection. Ruff check/format: PASS. No ETH
+price or outcome has been inspected yet. Commit this runner before download and
+evaluation; source-file hashes also accompany the later receipts.
