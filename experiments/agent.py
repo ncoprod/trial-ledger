@@ -164,6 +164,7 @@ def run_episode(
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True)
     ledger = Ledger(out_dir / "ledger", returns_directory=(results_dir or RESULTS) / "returns")
+    ledger._ensure()  # A startup failure must still leave a verifiable zero-trial ledger.
     svc = BacktestService(
         market, ledger, agent=model, session_id=run_id, source="agent", store_returns=not offline
     )

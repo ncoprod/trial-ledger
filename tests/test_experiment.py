@@ -57,6 +57,27 @@ def test_blind_hides_trial_ids():
     assert blind(res) == {"sharpe_annualized": 1.0, "top": [{"x": 1}]}
 
 
+def test_startup_api_failure_has_a_verifiable_empty_ledger(tmp_path):
+    from experiments.agent import run_episode
+    from experiments.analyze import analyze_episode
+    from trial_ledger.ledger import Ledger
+
+    episode = run_episode(
+        "tests/no-startup-response", "signflip", 0, offline=True, results_dir=tmp_path
+    )
+    directory = tmp_path / "runs/tests__no-startup-response/signflip-s0-r0"
+    assert episode["status"] == "api_error: CacheMiss"
+    assert episode["ledger_records"] == 0
+    assert (
+        Ledger(directory / "ledger")
+        .verify(expect_head=episode["ledger_head"], check_returns=True)
+        .ok
+    )
+    row = analyze_episode(directory)
+    assert row["status"] == episode["status"] and row["n_ledger"] == 0
+    assert "psr0" not in row and not row["submitted_valid"]
+
+
 def test_csv_preserves_acceptance_boundary(tmp_path, monkeypatch):
     import csv
 

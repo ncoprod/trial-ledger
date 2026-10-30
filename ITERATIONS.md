@@ -887,3 +887,17 @@ Command: `RAYON_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1
 uv run --no-sync pytest`: 137 PASS; ignored `runs/review-count-report-tests.log`.
 Ruff check/format PASS for all three changed Python renderers. Final figures are
 regenerated only from the full fixed sample.
+
+Startup-failure iteration: a missing response before the first trial leaves no
+ledger file, so a genuine zero-trial failure cannot pass the publication audit.
+New offline regression `test_startup_api_failure_has_a_verifiable_empty_ledger`
+FAILs before the fix (`runs/review-empty-first.log`). Initialize the empty ledger
+before requesting model output; keep failed status, zero trials and no scores.
+Command: `RAYON_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1
+uv run --no-sync pytest`: 138 PASS (`runs/review-empty-fixed.log`). Ruff check PASS;
+initial format check flags the new multiline assertion, formatter applied and
+format recheck PASS. This test makes no API calls or financial evaluations.
+Long-running live NIM processes still execute their launch snapshot; they are not
+restarted. Any genuine zero-trial receipt from that snapshot must be explicitly
+hydrated against its external genesis anchor, with no invented evaluations.
+Backtest feedback, fixed sample and all inference settings remain unchanged.
