@@ -1083,3 +1083,12 @@ cancelled before any step executes; this is not a test failure. Receipt: ignored
 annotations API. Ask the owner to restore Actions billing while completing the
 PDF commit. Keep the local 149-test/three-Rust-test success distinct from the
 blocked hosted CI result; do not alter workflow coverage or account billing.
+
+Round 3 plan: prioritize an ETH transfer diagnostic, model/market decomposition
+and narrower generated README tables. Freeze `experiments/ROUND3.md` before ETH
+download/evaluation. Preserve the original fixed sample and headline files; no
+additional NIM cohort or inference is started. Hypothesis: a second real asset
+and explicit heterogeneity provide more independent information than adding
+models on already reused seeds. Success criteria and descriptive-only limits are
+in that plan. Use `scripts/ci_local.sh` through the pre-push hook while hosted
+Actions minutes are exhausted; retain the pre-existing untracked local receipt.
